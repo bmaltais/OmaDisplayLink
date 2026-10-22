@@ -327,21 +327,13 @@ cmd_relogin() {
   omarchy system logout
 }
 
-# Runs a command, then waits, so the floating terminal does not vanish before its output is read.
-cmd_term() {
-  local rc=0
-  "$HERE/omadisplaylink" "$@" || rc=$?
-  echo
-  read -r -p "Press Enter to close. " _ || true
-  return "$rc"
-}
-
 cmd_launch() {
   case "${1:-}" in
     setup | repair | reinstall | uninstall | relogin) ;;
     *) fail "launch: expected setup, repair, reinstall, uninstall or relogin" ;;
   esac
-  exec omarchy-launch-floating-terminal-with-presentation "$(printf '%q ' "$HERE/omadisplaylink" _term "$1")"
+  # The wrapper shows Omarchy's own Done/Failed prompt when the command ends, so nothing here waits for a key.
+  exec omarchy-launch-floating-terminal-with-presentation "$(printf '%q ' "$HERE/omadisplaylink" "$1")"
 }
 
 case "${1:-}" in
@@ -354,7 +346,6 @@ case "${1:-}" in
   doctor) cmd_doctor ;;
   report) cmd_report ;;
   launch) cmd_launch "${2:-}" ;;
-  _term) shift; cmd_term "$@" ;;
   -h | --help | help | "") usage ;;
   *)
     usage >&2
