@@ -1,0 +1,32 @@
+BarWidget.qml	import	BarIconButton was not found. Did you add all imports and dependencies?
+BarWidget.qml	import	Button was not found. Did you add all imports and dependencies?
+BarWidget.qml	import	Failed to import qs.Commons. Are your import paths set up properly?
+BarWidget.qml	import	Failed to import qs.Ui. Are your import paths set up properly?
+BarWidget.qml	import	PanelHero was not found. Did you add all imports and dependencies?
+BarWidget.qml	import	PanelSectionHeader was not found. Did you add all imports and dependencies?
+BarWidget.qml	import	PanelSeparator was not found. Did you add all imports and dependencies?
+BarWidget.qml	import	PopupCard was not found. Did you add all imports and dependencies?
+BarWidget.qml	import	Warnings occurred while importing module "qs.Commons":
+BarWidget.qml	import	Warnings occurred while importing module "qs.Ui":
+BarWidget.qml	inheritance-cycle	BarWidget is part of an inheritance cycle: BarWidget -> BarWidget
+BarWidget.qml	type-instantiated-recursively	Type "BarWidget" can't be instantiated recursively
+BarWidget.qml	unqualified	Commons
+BarWidget.qml	unqualified	Style
+BarWidget.qml	unqualified	Util
+BarWidget.qml	unqualified	anchors
+BarWidget.qml	unqualified	button
+BarWidget.qml	unqualified	parent
+BarWidget.qml	unqualified	root
+BarWidget.qml	unresolved-type	Type BarWidget is used but it is not resolved
+BarWidget.qml	unresolved-type	Type QuietButton is used but it is not resolved
+BarWidget.qml	unresolved-type	Type anchors is used but it is not resolved
+DisplayLinkMark.qml	unqualified	Commons
+DisplayLinkMark.qml	unqualified	Style
+PrimaryAction.qml	import	Button was not found. Did you add all imports and dependencies?
+PrimaryAction.qml	unqualified	Commons
+PrimaryAction.qml	unqualified	Style
+PrimaryAction.qml	unqualified	parent
+QuietButton.qml	import	Button was not found. Did you add all imports and dependencies?
+QuietButton.qml	unqualified	Commons
+QuietButton.qml	unqualified	Style
+Service.qml	block-scope-var-declaration	var declaration in block scope is hoisted to function scope Replace it with const or let to silence the warning 

@@ -6,6 +6,8 @@
 #   (none)          build the patched package and install it
 #   --build-only    build it into ~/.cache/OmaDisplayLink, do not install
 #   --status        print "patched" or "stock" for the installed library (exit 0 / 1)
+#   --needed        exit 0 if this machine needs the fix (DisplayLink installed, Hyprland renders on NVIDIA)
+#   --nvidia        exit 0 if Hyprland renders on NVIDIA (before DisplayLink is installed)
 #   --ensure        do nothing unless DisplayLink + NVIDIA are in use and the installed library
 #                   lacks the fix; then rebuild, install and notify. Meant for the update hook.
 #   --install-hook  run --ensure after every `omarchy update` (writes one file under ~/.config/omarchy/hooks)
@@ -51,8 +53,7 @@ primary_gpu_driver() {
 
 # The fix is only needed when the compositor renders on NVIDIA. On a hybrid laptop that renders on the
 # integrated GPU nvidia_drm is loaded too, so it is only a fallback for when the primary is unknown.
-uses_displaylink_on_nvidia() {
-  pacman -Q displaylink >/dev/null 2>&1 || return 1
+renders_on_nvidia() {
   local driver
   driver="$(primary_gpu_driver)"
   if [[ -n "$driver" ]]; then
@@ -60,6 +61,10 @@ uses_displaylink_on_nvidia() {
   else
     [[ -d /sys/module/nvidia_drm ]]
   fi
+}
+
+uses_displaylink_on_nvidia() {
+  pacman -Q displaylink >/dev/null 2>&1 && renders_on_nvidia
 }
 
 pr_state() {
@@ -74,8 +79,9 @@ trap cleanup EXIT
 
 # Builds into $work and leaves the package path in $PKG. Returns non-zero with a message on failure.
 build_package() {
+  # Install the build tools first; the command check after it would otherwise fail on a trimmed system.
+  "$SCRIPT_DIR/displaylink-prereqs.sh" --build || return 1
   need_cmd pacman makepkg git patch curl python3 bsdtar || return 1
-  omarchy pkg add cmake hyprwayland-scanner base-devel || return 1
 
   # Installed version looks like 0.15.1-1 (stock) or 0.15.1-1.1 (already patched).
   local installed pkgver pkgrel
@@ -153,6 +159,12 @@ case "$MODE" in
     mkdir -p "$keep"
     cp "$PKG" "$keep/"
     echo "Built $keep/$(basename "$PKG") (not installed)."
+    ;;
+  --nvidia)
+    renders_on_nvidia
+    ;;
+  --needed)
+    uses_displaylink_on_nvidia
     ;;
   --status)
     if has_fix; then echo "patched"; else echo "stock"; exit 1; fi

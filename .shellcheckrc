@@ -1,0 +1,11 @@
+# Shellcheck rules the devkit's check (and CI) hold every script here to. Disabled on purpose, not hidden:
+#   SC1091  scripts source lib.sh by a path only known at run time
+#   SC2155  `x=$(...)` in an export or local where the exit status is not used
+#   SC2012  `ls` to pick the newest entry of a glob, where the names are ours and plain
+#   SC2045  the same, in a for loop over Hyprland's runtime directory (names are signatures we do not make up)
+#   SC2086  unquoted words that are numbers or plain names
+#   SC2015  `A && B || C` where C is a harmless fallback
+#   SC2329  a function called only indirectly
+#   SC2317  the same finding under its older number
+disable=SC1091,SC2155,SC2012,SC2045,SC2086,SC2015,SC2329,SC2317
+external-sources=true

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.bmaltais.omadisplaylink",
+  "name": "OmaDisplayLink",
+  "version": "0.1.0",
+  "author": "Bernard Maltais",
+  "license": "MIT",
+  "description": "DisplayLink USB docks on Omarchy: guided setup, a bar icon that says whether the dock screens are working, and an update hook that keeps the NVIDIA fix in place.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "homepage": "https://github.com/bmaltais/OmaDisplayLink",
+  "barWidget": {
+    "displayName": "OmaDisplayLink",
+    "description": "Shows whether the DisplayLink dock screens are working; click to set up or diagnose.",
+    "category": "System",
+    "aliases": [
+      "displaylink",
+      "dock",
+      "evdi",
+      "usb-monitor"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
