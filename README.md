@@ -51,13 +51,17 @@ The repo root is also an Omarchy shell plugin (`manifest.json`, `Service.qml`, `
 omarchy plugin add https://github.com/bmaltais/OmaDisplayLink.git --enable
 ```
 
-Not published to the marketplace yet and the bar icon has not been exercised in a live shell. The command line side works today:
+Not published to the marketplace yet. The bar icon has been exercised in the devkit's nested test session (all four states, click to open setup or the doctor, in demo mode), not yet on a real shell with a real dock. The command line side works today:
 
 ```bash
 bin/omadisplaylink status     # idle / ok / attention / unconfigured, with a reason
 bin/omadisplaylink setup      # guided install + configure (+ NVIDIA patch and hook)
 bin/omadisplaylink doctor     # sanitized report to paste into an issue
 ```
+
+### Developing the plugin
+
+Clone with `--recurse-submodules` (the test kit is `scripts/devkit`; users who install the plugin do not get it). `scripts/check.sh` runs shellcheck, qmllint and the manifest check. `scripts/dev up` starts a second desktop that your mouse and keyboard cannot reach, running this checkout in demo mode, so nothing real is installed or changed. `scripts/dev state unconfigured|idle|ok|attention` changes what it reports, `scripts/dev shot FILE` takes a screenshot, `scripts/dev reload` loads an edit, `scripts/dev down` ends it.
 
 ## Tested hardware
 

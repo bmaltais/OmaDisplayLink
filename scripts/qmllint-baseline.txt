@@ -1,0 +1,15 @@
+BarWidget.qml	import	BarIconButton was not found. Did you add all imports and dependencies?
+BarWidget.qml	import	Failed to import qs.Commons. Are your import paths set up properly?
+BarWidget.qml	import	Failed to import qs.Ui. Are your import paths set up properly?
+BarWidget.qml	import	Warnings occurred while importing module "qs.Commons":
+BarWidget.qml	import	Warnings occurred while importing module "qs.Ui":
+BarWidget.qml	inheritance-cycle	BarWidget is part of an inheritance cycle: BarWidget -> BarWidget
+BarWidget.qml	missing-property	Member "accent" not found on type "QQuickColor"
+BarWidget.qml	missing-property	Member "urgent" not found on type "QQuickColor"
+BarWidget.qml	type-instantiated-recursively	Type "BarWidget" can't be instantiated recursively
+BarWidget.qml	unqualified	anchors
+BarWidget.qml	unqualified	parent
+BarWidget.qml	unresolved-type	Type BarWidget is used but it is not resolved
+BarWidget.qml	unresolved-type	Type anchors is used but it is not resolved
+Service.qml	block-scope-var-declaration	var declaration in block scope is hoisted to function scope Replace it with const or let to silence the warning 
+Service.qml	unused-imports	Unused import

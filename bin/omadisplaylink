@@ -10,6 +10,9 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 SCRIPTS="$HERE/../scripts"
 STATUS_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/OmaDisplayLink/status"
+# Demo mode (the plugin test session): a file naming the state to report, and nothing real is touched.
+DEMO_FILE="$HOME/.config/OmaDisplayLink/demo"   # $HOME only: a session sets HOME, not always XDG_CONFIG_HOME
+demo() { [[ -r $DEMO_FILE ]]; }
 
 usage() { sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 fail() { echo "omadisplaylink: $*" >&2; exit 1; }
@@ -42,6 +45,15 @@ dock_attached() {
 # Prints "<kind> <message>". Kinds: unconfigured (driver not installed), idle (no dock plugged in),
 # ok (dock screens active), attention (something is wrong and the message says what).
 compute_status() {
+  if demo; then
+    case "$(head -n1 "$DEMO_FILE")" in
+      unconfigured) echo "unconfigured DisplayLink driver is not installed. Click to set it up." ;;
+      ok) echo "ok 2 dock screen(s) active." ;;
+      attention) echo "attention 1 of 2 dock screens have no picture. Check the monitor input, then run the doctor." ;;
+      *) echo "idle No DisplayLink dock is plugged in." ;;
+    esac
+    return
+  fi
   if ! pacman -Q evdi-dkms displaylink >/dev/null 2>&1; then
     echo "unconfigured DisplayLink driver is not installed. Click to set it up."
     return
@@ -88,9 +100,21 @@ cmd_status() {
   esac
 }
 
-cmd_doctor() { exec "$SCRIPTS/displaylink-detect.sh" --sanitize; }
+cmd_doctor() {
+  if demo; then
+    echo "Demo: this would print the sanitized DisplayLink report."
+    read -r -p "Press Enter to close. " _
+    return
+  fi
+  exec "$SCRIPTS/displaylink-detect.sh" --sanitize
+}
 
 cmd_setup() {
+  if demo; then
+    echo "Demo: this would install and configure DisplayLink. Nothing is changed."
+    read -r -p "Press Enter to close. " _
+    return
+  fi
   command -v gum >/dev/null 2>&1 || fail "gum is required (it ships with Omarchy)"
   echo "OmaDisplayLink setup"
   echo

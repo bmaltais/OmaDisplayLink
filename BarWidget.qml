@@ -1,4 +1,4 @@
-// The bar icon: a desktop that says how the DisplayLink dock is doing, and opens setup or the doctor.
+// The bar icon: a USB symbol that says how the DisplayLink dock is doing, and opens setup or the doctor.
 // What it draws comes from a file the service keeps up to date (line 1 the state, line 2 a sentence),
 // because the icon and the service are separate instances.
 import QtQuick
@@ -13,10 +13,10 @@ BarWidget {
 
   readonly property string statusFile: (Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache") + "/OmaDisplayLink/status"
   readonly property var glyphs: ({
-    unconfigured: "", // plus: nothing installed yet
-    idle: "",         // desktop: installed, no dock plugged in
-    ok: "",           // desktop: dock screens are working
-    attention: ""     // warning triangle
+    unconfigured: "\uf067", // plus: nothing installed yet
+    idle: "\uf287",         // usb: installed, no dock plugged in
+    ok: "\uf287",           // usb: dock screens are working
+    attention: "\uf071"     // warning triangle
   })
   property string kind: "unconfigured"
   property string message: "DisplayLink status is not known yet."
