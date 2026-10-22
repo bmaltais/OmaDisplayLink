@@ -81,117 +81,177 @@ BarWidget {
     }
   }
 
+  // Font Awesome glyphs from the Nerd Font the bar already uses.
+  readonly property var icons: ({
+    setup: "\uf019",     // download
+    relogin: "\uf08b",   // sign out
+    reinstall: "\uf021", // refresh
+    repair: "\uf0ad",    // wrench
+    report: "\uf0ea",    // clipboard
+    guide: "\uf02d",     // book
+    uninstall: "\uf1f8"  // trash
+  })
+  readonly property var stateLabels: ({
+    unconfigured: "NOT INSTALLED",
+    pending: "LOG OUT TO FINISH",
+    idle: "NO DOCK PLUGGED IN",
+    ok: "WORKING",
+    attention: "NEEDS ATTENTION"
+  })
+
+  // The one filled action for the state, or null when nothing needs doing.
+  readonly property var primary: {
+    if (action === "setup") return { id: "setup", label: "Set up DisplayLink", icon: icons.setup,
+      note: "Walks through the install step by step in a terminal. Asks before it changes anything, and for your password where a step needs it." }
+    if (action === "relogin") return { id: "relogin", label: "Log out now", icon: icons.relogin,
+      note: "Closes your session and returns to the login screen so the setup takes effect. Save your work first." }
+    if (action === "reinstall") return { id: "reinstall", label: "Reinstall", icon: icons.reinstall,
+      note: "The evdi kernel module is missing for this kernel. Rebuilds it and restarts the service; asks for your password." }
+    if (action === "patch") return { id: "repair", label: "Repair the NVIDIA fix", icon: icons.repair,
+      note: "An update replaced the patched Aquamarine. Rebuilds it in a terminal and asks for your password." }
+    if (action === "service") return { id: "repair", label: "Restart the DisplayLink service", icon: icons.repair,
+      note: "Restarts displaylink.service in a terminal and asks for your password." }
+    return null
+  }
+
   PopupCard {
     id: popup
     anchorItem: root
     bar: root.bar
     owner: root
     open: root.popupOpen
-    contentWidth: popup.fittedContentWidth(Style.space(320))
+    contentWidth: popup.fittedContentWidth(Style.space(340))
     contentHeight: popup.fittedContentHeight(column.implicitHeight)
 
     Column {
       id: column
       anchors.fill: parent
-      spacing: Style.space(10)
+      spacing: Style.space(12)
 
-      Row {
-        spacing: Style.space(10)
+      // Status first: a band tinted with the state colour says at a glance whether the dock is fine.
+      Rectangle {
         width: parent.width
-
-        DisplayLinkMark {
-          anchors.verticalCenter: parent.verticalCenter
-          iconSize: Style.space(32)
-          color: root.markColor
-          linked: root.kind === "ok" || root.kind === "attention"
-        }
+        implicitHeight: band.implicitHeight + Style.space(24)
+        height: implicitHeight
+        radius: Style.cornerRadius
+        color: Util.alpha(root.markColor, 0.10)
+        border.width: 1
+        border.color: Util.alpha(root.markColor, 0.35)
 
         Column {
-          width: parent.width - Style.space(42)
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(2)
+          id: band
+          x: Style.space(12)
+          y: Style.space(12)
+          width: parent.width - Style.space(24)
+          spacing: Style.space(8)
 
-          Text {
+          PanelHero {
             width: parent.width
-            textFormat: Text.PlainText
-            text: "DisplayLink dock"
-            color: root.bar.foreground
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.body
-            font.bold: true
+            title: "DisplayLink"
+            meta: root.stateLabels[root.kind]
+            foreground: root.bar.foreground
+            fontFamily: root.bar.fontFamily
+            iconComponent: Component {
+              DisplayLinkMark {
+                iconSize: Style.space(38)
+                color: root.markColor
+                linked: root.kind === "ok" || root.kind === "attention"
+              }
+            }
           }
           Text {
             width: parent.width
             textFormat: Text.PlainText
             text: root.message
-            color: root.kind === "attention" ? Commons.Color.urgent : Qt.darker(root.bar.foreground, 1.3)
+            color: root.bar.foreground
             font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.body
             wrapMode: Text.WordWrap
           }
         }
       }
 
-      PanelSeparator { width: parent.width; foreground: root.bar.foreground }
-
-      // Only the actions that apply. Each says what it will do before it does it.
-      Repeater {
-        model: {
-          var items = []
-          if (root.action === "setup") items.push({ id: "setup", label: "Set up DisplayLink",
-            note: "Walks through the install step by step in a terminal. Asks before it changes anything, and for your password where a step needs it." })
-          if (root.action === "relogin") items.push({ id: "relogin", label: "Log out now",
-            note: "Closes your session and returns to the login screen so the setup takes effect. Save your work first." })
-          if (root.action === "reinstall") items.push({ id: "reinstall", label: "Reinstall",
-            note: "The evdi kernel module is missing for this kernel. Rebuilds it and restarts the service; asks for your password." })
-          if (root.action === "patch") items.push({ id: "repair", label: "Repair the NVIDIA fix",
-            note: "An update replaced the patched Aquamarine. Rebuilds it in a terminal and asks for your password." })
-          if (root.action === "service") items.push({ id: "repair", label: "Restart the DisplayLink service",
-            note: "Restarts displaylink.service in a terminal and asks for your password." })
-          items.push({ id: "report", label: "Copy report",
-            note: "Copies a sanitized report to the clipboard to paste into a GitHub issue. Changes nothing." })
-          items.push({ id: "guide", label: "Open the guide",
-            note: "Opens the README in your browser." })
-          return items
-        }
-
-        ActionRow {
-          width: column.width
-          label: modelData.label
-          note: modelData.note
-          foreground: root.bar.foreground
-          fontFamily: root.bar.fontFamily
-          onTriggered: modelData.id === "guide" ? root.openGuide() : root.run(modelData.id)
-        }
-      }
-
-      // Reinstall and uninstall only make sense once something is installed.
-      PanelSeparator { width: parent.width; foreground: root.bar.foreground; visible: root.kind !== "unconfigured" }
-      PanelSectionHeader {
+      // The one thing to do now. Not shown when everything is fine.
+      PrimaryAction {
+        visible: root.primary !== null
         width: parent.width
-        visible: root.kind !== "unconfigured"
-        text: "MAINTENANCE"
+        label: root.primary ? root.primary.label : ""
+        icon: root.primary ? root.primary.icon : ""
+        note: root.primary ? root.primary.note : ""
         foreground: root.bar.foreground
         fontFamily: root.bar.fontFamily
+        onTriggered: root.run(root.primary.id)
       }
-      Repeater {
-        model: {
-          if (root.kind === "unconfigured") return []
-          var items = []
-          if (root.action !== "reinstall") items.push({ id: "reinstall", label: "Reinstall",
-            note: "Rebuilds the evdi kernel module and restarts the DisplayLink service. Use it after a kernel update, or if the dock stopped working." })
-          items.push({ id: "uninstall", label: "Uninstall",
-            note: "Removes the driver and everything setup added. The dock screens go dark. A terminal shows each step and asks first." })
-          return items
-        }
 
-        ActionRow {
-          width: column.width
-          label: modelData.label
-          note: modelData.note
+      Row {
+        width: parent.width
+        spacing: Style.space(8)
+
+        QuietButton {
+          width: (parent.width - parent.spacing) / 2
+          text: "Copy report"
+          iconText: root.icons.report
           foreground: root.bar.foreground
           fontFamily: root.bar.fontFamily
-          onTriggered: root.run(modelData.id)
+          tooltipText: "Copies a sanitized report to the clipboard, to paste into a GitHub issue. Changes nothing."
+          onClicked: root.run("report")
+        }
+        QuietButton {
+          width: (parent.width - parent.spacing) / 2
+          text: "Guide"
+          iconText: root.icons.guide
+          foreground: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+          tooltipText: "Opens the README in your browser."
+          onClicked: root.openGuide()
+        }
+      }
+
+      // Reinstall and uninstall only make sense once something is installed, and are never the loudest thing.
+      Column {
+        width: parent.width
+        spacing: Style.space(8)
+        visible: root.kind !== "unconfigured"
+
+        PanelSeparator { width: parent.width; foreground: root.bar.foreground }
+
+        Item {
+          width: parent.width
+          height: Math.max(maintenanceLabel.implicitHeight, maintenanceButtons.implicitHeight)
+
+          PanelSectionHeader {
+            id: maintenanceLabel
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: "MAINTENANCE"
+            foreground: root.bar.foreground
+            fontFamily: root.bar.fontFamily
+          }
+          Row {
+            id: maintenanceButtons
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(4)
+
+            QuietButton {
+              visible: root.action !== "reinstall"
+              text: "Reinstall"
+              iconText: root.icons.reinstall
+              foreground: root.bar.foreground
+              fontFamily: root.bar.fontFamily
+              tooltipText: "Rebuilds the evdi kernel module and restarts the DisplayLink service. Use it after a kernel update, or if the dock stopped working."
+              onClicked: root.run("reinstall")
+            }
+            QuietButton {
+              danger: true
+              text: "Uninstall"
+              iconText: root.icons.uninstall
+              foreground: root.bar.foreground
+              fontFamily: root.bar.fontFamily
+              tooltipText: "Removes the driver and everything setup added. The dock screens go dark. A terminal shows each step and asks first."
+              onClicked: root.run("uninstall")
+            }
+          }
         }
       }
     }
