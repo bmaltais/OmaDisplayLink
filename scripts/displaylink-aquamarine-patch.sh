@@ -67,10 +67,11 @@ uses_displaylink_on_nvidia() {
   pacman -Q displaylink >/dev/null 2>&1 && renders_on_nvidia
 }
 
+# The response is read into a variable and parsed with jq, never piped into an interpreter.
 pr_state() {
-  curl -fsS --max-time 5 https://api.github.com/repos/hyprwm/aquamarine/pulls/279 2>/dev/null |
-    python3 -c 'import json,sys; d=json.load(sys.stdin); print("merged" if d.get("merged") else d.get("state","unknown"))' 2>/dev/null ||
-    echo unknown
+  local json
+  json="$(curl -fsS --max-time 5 https://api.github.com/repos/hyprwm/aquamarine/pulls/279 2>/dev/null)" || { echo unknown; return; }
+  jq -r 'if .merged then "merged" else (.state // "unknown") end' <<<"$json" 2>/dev/null || echo unknown
 }
 
 work=""
@@ -103,7 +104,8 @@ build_package() {
 
   # The patch is written against one upstream release; verify it applies before building.
   mkdir -p "$work/src"
-  curl -fsSL "https://github.com/hyprwm/aquamarine/archive/v$pkgver/aquamarine-$pkgver.tar.gz" | tar xz -C "$work/src" || return 1
+  curl -fsSL -o "$work/aquamarine.tar.gz" "https://github.com/hyprwm/aquamarine/archive/v$pkgver/aquamarine-$pkgver.tar.gz" || return 1
+  tar xzf "$work/aquamarine.tar.gz" -C "$work/src" || return 1
   if ! patch -Np1 --dry-run -d "$work/src/aquamarine-$pkgver" -i "$PATCH" >/dev/null; then
     echo "The patch does not apply to aquamarine $pkgver (upstream PR #279 is: $(pr_state))." >&2
     return 2
