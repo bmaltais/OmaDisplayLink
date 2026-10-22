@@ -1,6 +1,6 @@
 # Manual install (command line)
 
-Most people should use the plugin: see **Install** in the [README](../README.md). Use this page if you do not want the plugin, are on a machine without the Omarchy shell, or want to script it. These are the same scripts the plugin runs, in the same order.
+Most people should use the plugin: see **Install** in the [README](../README.md#install). Use this page if you do not want the plugin, are on a machine without the Omarchy shell, or want to script it. These are the same scripts the plugin runs, in the same order.
 
 ```bash
 git clone https://github.com/bmaltais/OmaDisplayLink.git

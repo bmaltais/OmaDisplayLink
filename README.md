@@ -8,6 +8,16 @@ If your DisplayLink screens show **no signal**, stay at **0x0**, or Hyprland log
 >
 > This is an independent community project. It is not affiliated with or endorsed by Omarchy, Hyprland, Synaptics/DisplayLink, or any dock vendor.
 
+## Install
+
+**BASH** · Install current upstream
+
+```bash
+omarchy plugin add https://github.com/bmaltais/OmaDisplayLink.git --enable
+```
+
+Then click the new **D** icon in the bar and choose **Set up DisplayLink**. [Step-by-step with screenshots](#install-walkthrough), or the [command-line route](#manual-install-command-line) if you would rather not use the plugin.
+
 ## What you get
 
 DisplayLink docks are not ordinary USB-C or DisplayPort docks. They send video over USB and need the **evdi** kernel module plus the proprietary **DisplayLink** userspace driver, and Hyprland has to be told how to use the resulting virtual screens. OmaDisplayLink does all of that for you:
@@ -19,7 +29,7 @@ DisplayLink docks are not ordinary USB-C or DisplayPort docks. They send video o
 
 Everything is a plain shell script you can read, and every change has a documented undo.
 
-## Install
+## Install walkthrough
 
 You do not need to use a terminal for most of this. The plugin puts an icon in your bar; its card walks you through the rest. (Prefer the command line? See [Manual install](#manual-install-command-line).)
 
