@@ -55,6 +55,10 @@ dock_live() {
   ((enabled > 0))
 }
 
+# pacman or dkms is working: right after a kernel update evdi has no module for the running kernel until dkms
+# has rebuilt it, which looks exactly like a real fault for a minute or two.
+update_running() { pgrep -x 'pacman|dkms|makepkg' >/dev/null 2>&1; }
+
 dock_attached() {
   local dev
   for dev in /sys/bus/usb/devices/*; do
@@ -84,7 +88,8 @@ relogin_pending() {
 }
 
 # Prints "<kind>|<action>|<message>". Kinds: unconfigured (driver not installed), pending (setup done, waiting
-# for a login), idle (no dock plugged in), ok (dock screens active), attention (something is wrong).
+# for a login), idle (no dock plugged in), ok (dock screens active), attention (something is wrong),
+# updating (a problem seen while pacman or dkms is running, so probably not a real one).
 # The action is what the card should offer: setup, relogin, reinstall, service, patch, or nothing.
 compute_status() {
   if demo; then
@@ -142,6 +147,10 @@ compute_status() {
 cmd_status() {
   local mode="${1:-}" line kind action message
   line="$(compute_status)"
+  # A problem found while an update is running is probably the update; say so instead of asking for a repair.
+  if [[ $line == attention\|* ]] && ! demo && update_running; then
+    line="updating||A system update is running. The dock is checked again when it finishes."
+  fi
   IFS='|' read -r kind action message <<<"$line"
   case "$mode" in
     --json) jq -nc --arg kind "$kind" --arg action "$action" --arg message "$message" '{kind: $kind, action: $action, message: $message}' ;;

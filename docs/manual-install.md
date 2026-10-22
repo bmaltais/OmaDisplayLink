@@ -27,7 +27,7 @@ Then **log out and back in with the dock attached** (or reboot), and plug it int
 `bin/omadisplaylink` runs those scripts as numbered steps with a question before anything changes, and every command has `--preview`, which says what it would do and changes nothing:
 
 ```bash
-bin/omadisplaylink status     # idle / ok / attention / pending / unconfigured, with a reason
+bin/omadisplaylink status     # idle / ok / attention / pending / updating / unconfigured, with a reason
 bin/omadisplaylink setup      # install + configure (+ NVIDIA patch and hook), step by step
 bin/omadisplaylink reinstall  # rebuild the evdi module and restart the service
 bin/omadisplaylink uninstall  # remove DisplayLink and everything setup added

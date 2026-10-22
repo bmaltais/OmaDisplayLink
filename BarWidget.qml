@@ -28,7 +28,7 @@ BarWidget {
   readonly property color markColor: kind === "attention" ? Commons.Color.urgent
     : kind === "ok" || kind === "pending" ? Commons.Color.accent
     : (root.bar ? root.bar.barForeground : Commons.Color.foreground)
-  readonly property real markOpacity: kind === "idle" ? 0.6 : kind === "unconfigured" ? 0.4 : 1.0
+  readonly property real markOpacity: kind === "idle" || kind === "updating" ? 0.6 : kind === "unconfigured" ? 0.4 : 1.0
 
   function close() { popupOpen = false }
   function run(what) {
@@ -52,7 +52,7 @@ BarWidget {
     onLoaded: {
       var lines = text().split("\n")
       var k = lines[0].trim()
-      root.kind = ["unconfigured", "pending", "idle", "ok", "attention"].indexOf(k) >= 0 ? k : "unconfigured"
+      root.kind = ["unconfigured", "pending", "idle", "ok", "attention", "updating"].indexOf(k) >= 0 ? k : "unconfigured"
       root.message = (lines[1] || "").trim() || root.message
       root.action = (lines[2] || "").trim()
     }
@@ -97,7 +97,8 @@ BarWidget {
     pending: "LOG OUT TO FINISH",
     idle: "NO DOCK PLUGGED IN",
     ok: "WORKING",
-    attention: "NEEDS ATTENTION"
+    attention: "NEEDS ATTENTION",
+    updating: "UPDATE IN PROGRESS"
   })
 
   // The one filled action for the state, or null when nothing needs doing.
