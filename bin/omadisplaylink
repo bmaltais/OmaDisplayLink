@@ -177,7 +177,8 @@ preview_flag() {
     "") ;;
     *) fail "unknown option $1" ;;
   esac
-  demo && PREVIEW=1
+  # Demo mode asks the real questions and simulates the steps, unless --preview was asked for.
+  if demo && ((!PREVIEW)); then SIMULATE=1; fi
   return 0
 }
 
@@ -217,7 +218,7 @@ cmd_setup() {
   if ((PREVIEW)); then
     step_would "offer to run: omarchy snapshot create"
   elif gum confirm "Take a system snapshot first? (recommended)"; then
-    omarchy snapshot create || step_skip "snapshot failed; continuing"
+    if ((SIMULATE)); then step_ok "snapshot created"; else omarchy snapshot create || step_skip "snapshot failed; continuing"; fi
   else
     step_skip "skipped"
   fi
@@ -248,13 +249,18 @@ cmd_setup() {
     echo "Preview only: nothing was changed."
     return 0
   fi
-  mkdir -p "$STATE_DIR"
-  : >"$PENDING_FILE"
+  if ((SIMULATE)); then
+    # The demo's card follows the flow: setup done, waiting for a login.
+    printf 'pending\nrelogin\n' >"$DEMO_FILE"
+  else
+    mkdir -p "$STATE_DIR"
+    : >"$PENDING_FILE"
+  fi
   cmd_status --write >/dev/null || true
   step_ok "setup finished"
   echo
   if gum confirm "Log out now? Save your work first."; then
-    omarchy system logout
+    if ((SIMULATE)); then echo "Demo: this would log you out."; else omarchy system logout; fi
   else
     echo "Log out and back in when you are ready; the bar icon will say so until you do."
   fi
@@ -293,8 +299,9 @@ cmd_reinstall() {
 cmd_uninstall() {
   preview_flag "${1:-}"
   need_gum
-  if ((PREVIEW)); then "$SCRIPTS/displaylink-uninstall.sh" --preview; else "$SCRIPTS/displaylink-uninstall.sh"; fi
-  ((PREVIEW)) || cmd_status --write >/dev/null || true
+  # Demo mode never uninstalls: it only shows the preview, however it was asked for.
+  if ((PREVIEW)) || demo; then "$SCRIPTS/displaylink-uninstall.sh" --preview; else "$SCRIPTS/displaylink-uninstall.sh"; fi
+  ((PREVIEW)) || demo || cmd_status --write >/dev/null || true
 }
 
 # Fixes the one thing status says is wrong. Each branch says what it will do and asks first.

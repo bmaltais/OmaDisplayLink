@@ -3,6 +3,9 @@
 # PREVIEW=1 says what each step would do and changes nothing.
 
 PREVIEW="${PREVIEW:-0}"
+# SIMULATE=1 (the plugin's demo mode) asks the real questions but pretends every step succeeded, so a
+# screenshot or a walkthrough shows what a run looks like without running anything.
+SIMULATE="${SIMULATE:-0}"
 STEP_TOTAL=0
 STEP_N=0
 
@@ -23,6 +26,11 @@ run_step() {
   shift
   if ((PREVIEW)); then
     step_would "$what"
+    return 0
+  fi
+  if ((SIMULATE)); then
+    sleep 0.4
+    step_ok "$what"
     return 0
   fi
   if "$@"; then
