@@ -208,7 +208,7 @@ cmd_setup() {
   echo "Your password is asked for where a step needs it, and you can stop at any prompt."
   echo
   ask "Go ahead?" || { echo "Cancelled. Nothing was changed."; exit 130; }
-  steps_begin $((nvidia ? 6 : 5))
+  steps_begin $((nvidia ? 7 : 6))
 
   step "Check this machine" "A look at what setup will be working with."
   check_machine
@@ -220,6 +220,13 @@ cmd_setup() {
     omarchy snapshot create || step_skip "snapshot failed; continuing"
   else
     step_skip "skipped"
+  fi
+
+  step "Check build tools and helpers" "Installs anything missing that the next steps need (compilers, git, python, jq, gum, clipboard tool). Usually nothing."
+  if ((PREVIEW)); then
+    "$SCRIPTS/displaylink-prereqs.sh" --check | sed 's/^/  /' || true
+  else
+    run_step "install missing prerequisites" "$SCRIPTS/displaylink-prereqs.sh" || stop_flow
   fi
 
   step "Install the driver" "Installs evdi-dkms (builds a kernel module, takes a minute or two) and displaylink, and enables the service."

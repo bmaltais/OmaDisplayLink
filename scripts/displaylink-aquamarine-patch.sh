@@ -79,8 +79,9 @@ trap cleanup EXIT
 
 # Builds into $work and leaves the package path in $PKG. Returns non-zero with a message on failure.
 build_package() {
+  # Install the build tools first; the command check after it would otherwise fail on a trimmed system.
+  "$SCRIPT_DIR/displaylink-prereqs.sh" --build || return 1
   need_cmd pacman makepkg git patch curl python3 bsdtar || return 1
-  omarchy pkg add cmake hyprwayland-scanner base-devel || return 1
 
   # Installed version looks like 0.15.1-1 (stock) or 0.15.1-1.1 (already patched).
   local installed pkgver pkgrel

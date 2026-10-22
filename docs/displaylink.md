@@ -61,7 +61,9 @@ To paste detect output into a public issue, run `./scripts/displaylink-detect.sh
 ./scripts/displaylink-install.sh
 ```
 
-What it does:
+Before it, `./scripts/displaylink-prereqs.sh` installs anything missing that the scripts lean on (`base-devel`, `git`, `curl`, `python`, `libarchive`, `cmake`, `hyprwayland-scanner`, `dkms`, `usbutils`, `jq`, `gum`, `wl-clipboard`; on stock Omarchy that is usually just `cmake`, `hyprwayland-scanner` and `usbutils`). `--check` lists what is missing without installing, and the plugin's setup runs it as a step.
+
+What the install script does:
 
 - Installs `dkms`, `usbutils`, and headers for the **running** kernel
 - Builds `evdi-dkms` and `displaylink` from the AUR via `omarchy pkg aur add`
