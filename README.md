@@ -83,7 +83,7 @@ On AMD or Intel there is no step 6, so setup has six steps.
 
 ### 5. Log out and back in
 
-The dock only starts working after a fresh login, because Hyprland reads its graphics settings once at startup. The last question offers to log you out for you; save your work first. Plug the dock into a **USB 3 / SuperSpeed** port, and have it attached when you log back in.
+On most machines the dock only starts working after a fresh login, because Hyprland reads its graphics settings once at startup. If the dock screens are already lit when setup finishes (this can happen on Intel and AMD), setup says so, skips the logout question and the icon goes straight to **Working**; the new settings are still read at your next login. Otherwise the last question offers to log you out for you; save your work first. Plug the dock into a **USB 3 / SuperSpeed** port, and have it attached when you log back in.
 
 ![The end of setup: Log out and back in when you are ready, and Omarchy's Done prompt](docs/images/05-done.png)
 
