@@ -9,7 +9,8 @@ Live files under `~/.config/` and `/etc/` are applied copies. Templates under `c
 ```
 docs/displaylink.md        # the full guide (detect, install, configure, verify, undo)
 config/displaylink/        # generic templates and the Aquamarine patch
-scripts/displaylink-*.sh   # detect / install / configure / patch / rebuild / benchmark / dryrun
+scripts/displaylink-*.sh   # detect / install / configure / patch / rebuild / uninstall / benchmark / dryrun
+scripts/steps.sh           # numbered-step output shared by setup, reinstall and uninstall (PREVIEW=1 changes nothing)
 scripts/lib.sh             # shared helpers
 ```
 

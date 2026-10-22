@@ -45,7 +45,7 @@ Full explanation, verification steps and undo: [docs/displaylink.md](docs/displa
 
 ## Omarchy plugin (in development)
 
-The repo root is also an Omarchy shell plugin (`manifest.json`, `Service.qml`, `BarWidget.qml`, `bin/omadisplaylink`). It adds a bar icon (a "D" with a pixel inside it that lights up while a dock is working) and a standard Omarchy card: one sentence about the dock, then only the actions that apply, each with a line saying what it will do. Anything that needs your password opens in a visible terminal and asks first. The scripts above stay the real engine and keep working without it.
+The repo root is also an Omarchy shell plugin (`manifest.json`, `Service.qml`, `BarWidget.qml`, `bin/omadisplaylink`). It adds a bar icon (a "D" with a pixel inside it that lights up while a dock is working) and a standard Omarchy card: one sentence about the dock, then only the actions that apply, each with a line saying what it will do. Setup, reinstall and uninstall run in a visible terminal as numbered steps, each with a line saying what it does; they ask before changing anything, and every one has a `--preview` that changes nothing. When setup finishes the card says "Log out and back in" until you have. The scripts above stay the real engine and keep working without it.
 
 ```bash
 omarchy plugin add https://github.com/bmaltais/OmaDisplayLink.git --enable
@@ -55,7 +55,9 @@ Not published to the marketplace yet. The bar icon has been exercised in the dev
 
 ```bash
 bin/omadisplaylink status     # idle / ok / attention / unconfigured, with a reason
-bin/omadisplaylink setup      # guided install + configure (+ NVIDIA patch and hook)
+bin/omadisplaylink setup      # guided, numbered steps: install + configure (+ NVIDIA patch and hook)
+bin/omadisplaylink reinstall  # rebuild the evdi module and restart the service
+bin/omadisplaylink uninstall  # remove DisplayLink and everything setup added
 bin/omadisplaylink repair     # fix what status says is wrong (asks first)
 bin/omadisplaylink report     # copy a sanitized report to the clipboard
 bin/omadisplaylink doctor     # print that report
@@ -108,7 +110,12 @@ Also check your monitor's input source before debugging further: a healthy dock 
 
 ## Uninstall
 
-Every script documents its undo in [docs/displaylink.md](docs/displaylink.md#undo). The patched package is replaced by the stock one with `sudo pacman -S aquamarine`, and `displaylink-aquamarine-patch.sh --remove-hook` removes the update hook.
+```bash
+./scripts/displaylink-uninstall.sh --preview   # what it would do, nothing changed
+./scripts/displaylink-uninstall.sh            # step by step, after a confirmation
+```
+
+It stops the service, removes the setup files, the Hyprland environment block and the update hook, puts the stock Aquamarine back if the patched one is installed, and removes the packages. Your `monitors.lua` is left alone. The manual steps are in [docs/displaylink.md](docs/displaylink.md#undo).
 
 ## Contributing
 

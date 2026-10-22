@@ -20,12 +20,12 @@ BarWidget {
 
   property string kind: "unconfigured"
   property string message: "DisplayLink status is not known yet."
-  // What would help, or "": setup, patch (rebuild the NVIDIA fix) or service (restart displaylink.service).
+  // What would help, or "": setup, relogin, reinstall, patch (rebuild the NVIDIA fix) or service (restart displaylink.service).
   property string action: ""
   property bool popupOpen: false
 
   readonly property color markColor: kind === "attention" ? Commons.Color.urgent
-    : kind === "ok" ? Commons.Color.accent
+    : kind === "ok" || kind === "pending" ? Commons.Color.accent
     : (root.bar ? root.bar.barForeground : Commons.Color.foreground)
   readonly property real markOpacity: kind === "idle" ? 0.6 : kind === "unconfigured" ? 0.4 : 1.0
 
@@ -51,7 +51,7 @@ BarWidget {
     onLoaded: {
       var lines = text().split("\n")
       var k = lines[0].trim()
-      root.kind = ["unconfigured", "idle", "ok", "attention"].indexOf(k) >= 0 ? k : "unconfigured"
+      root.kind = ["unconfigured", "pending", "idle", "ok", "attention"].indexOf(k) >= 0 ? k : "unconfigured"
       root.message = (lines[1] || "").trim() || root.message
       root.action = (lines[2] || "").trim()
     }
@@ -139,7 +139,11 @@ BarWidget {
         model: {
           var items = []
           if (root.action === "setup") items.push({ id: "setup", label: "Set up DisplayLink",
-            note: "Installs the driver and configures Hyprland. Opens a terminal and asks for your password." })
+            note: "Walks through the install step by step in a terminal. Asks before it changes anything, and for your password where a step needs it." })
+          if (root.action === "relogin") items.push({ id: "relogin", label: "Log out now",
+            note: "Closes your session and returns to the login screen so the setup takes effect. Save your work first." })
+          if (root.action === "reinstall") items.push({ id: "reinstall", label: "Reinstall",
+            note: "The evdi kernel module is missing for this kernel. Rebuilds it and restarts the service; asks for your password." })
           if (root.action === "patch") items.push({ id: "repair", label: "Repair the NVIDIA fix",
             note: "An update replaced the patched Aquamarine. Rebuilds it in a terminal and asks for your password." })
           if (root.action === "service") items.push({ id: "repair", label: "Restart the DisplayLink service",
@@ -151,27 +155,43 @@ BarWidget {
           return items
         }
 
-        Column {
+        ActionRow {
           width: column.width
-          spacing: Style.space(2)
+          label: modelData.label
+          note: modelData.note
+          foreground: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+          onTriggered: modelData.id === "guide" ? root.openGuide() : root.run(modelData.id)
+        }
+      }
 
-          Button {
-            width: parent.width
-            text: modelData.label
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            bordered: true
-            onClicked: modelData.id === "guide" ? root.openGuide() : root.run(modelData.id)
-          }
-          Text {
-            width: parent.width
-            textFormat: Text.PlainText
-            text: modelData.note
-            color: Qt.darker(root.bar.foreground, 1.5)
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.WordWrap
-          }
+      // Reinstall and uninstall only make sense once something is installed.
+      PanelSeparator { width: parent.width; foreground: root.bar.foreground; visible: root.kind !== "unconfigured" }
+      PanelSectionHeader {
+        width: parent.width
+        visible: root.kind !== "unconfigured"
+        text: "MAINTENANCE"
+        foreground: root.bar.foreground
+        fontFamily: root.bar.fontFamily
+      }
+      Repeater {
+        model: {
+          if (root.kind === "unconfigured") return []
+          var items = []
+          if (root.action !== "reinstall") items.push({ id: "reinstall", label: "Reinstall",
+            note: "Rebuilds the evdi kernel module and restarts the DisplayLink service. Use it after a kernel update, or if the dock stopped working." })
+          items.push({ id: "uninstall", label: "Uninstall",
+            note: "Removes the driver and everything setup added. The dock screens go dark. A terminal shows each step and asks first." })
+          return items
+        }
+
+        ActionRow {
+          width: column.width
+          label: modelData.label
+          note: modelData.note
+          foreground: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+          onTriggered: root.run(modelData.id)
         }
       }
     }

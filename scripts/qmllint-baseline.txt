@@ -1,11 +1,15 @@
+ActionRow.qml	import	Button was not found. Did you add all imports and dependencies?
+ActionRow.qml	import	Failed to import qs.Commons. Are your import paths set up properly?
+ActionRow.qml	import	Failed to import qs.Ui. Are your import paths set up properly?
+ActionRow.qml	import	Warnings occurred while importing module "qs.Commons":
+ActionRow.qml	import	Warnings occurred while importing module "qs.Ui":
+ActionRow.qml	unqualified	Commons
+ActionRow.qml	unqualified	Style
+ActionRow.qml	unqualified	parent
 BarWidget.qml	import	BarIconButton was not found. Did you add all imports and dependencies?
-BarWidget.qml	import	Button was not found. Did you add all imports and dependencies?
-BarWidget.qml	import	Failed to import qs.Commons. Are your import paths set up properly?
-BarWidget.qml	import	Failed to import qs.Ui. Are your import paths set up properly?
+BarWidget.qml	import	PanelSectionHeader was not found. Did you add all imports and dependencies?
 BarWidget.qml	import	PanelSeparator was not found. Did you add all imports and dependencies?
 BarWidget.qml	import	PopupCard was not found. Did you add all imports and dependencies?
-BarWidget.qml	import	Warnings occurred while importing module "qs.Commons":
-BarWidget.qml	import	Warnings occurred while importing module "qs.Ui":
 BarWidget.qml	inheritance-cycle	BarWidget is part of an inheritance cycle: BarWidget -> BarWidget
 BarWidget.qml	type-instantiated-recursively	Type "BarWidget" can't be instantiated recursively
 BarWidget.qml	unqualified	Commons

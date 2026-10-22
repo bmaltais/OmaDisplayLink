@@ -252,6 +252,15 @@ That runs `dkms autoinstall` and restarts `displaylink.service`. On NVIDIA also 
 
 ## Undo
 
+One command does all of this, step by step, after a summary and a confirmation (and `--preview` says what it would do without changing anything). It also keeps a backup of your Hyprland environment file, offers a snapshot first, and leaves `monitors.lua` alone:
+
+```bash
+./scripts/displaylink-uninstall.sh --preview
+./scripts/displaylink-uninstall.sh
+```
+
+The same thing is **Uninstall** in the bar card of the Omarchy plugin. By hand, the steps are:
+
 ```bash
 sudo systemctl disable --now displaylink.service
 sudo rm -f /etc/modprobe.d/evdi.conf \

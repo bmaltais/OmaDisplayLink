@@ -4,6 +4,9 @@
 //
 //   omarchy-shell io.github.bmaltais.omadisplaylink setup     guided install and configure
 //   omarchy-shell io.github.bmaltais.omadisplaylink repair    fix what the card says is wrong
+//   omarchy-shell io.github.bmaltais.omadisplaylink reinstall rebuild the evdi module and restart the service
+//   omarchy-shell io.github.bmaltais.omadisplaylink uninstall remove DisplayLink and the setup files
+//   omarchy-shell io.github.bmaltais.omadisplaylink relogin   log out so a finished setup takes effect
 //   omarchy-shell io.github.bmaltais.omadisplaylink report    copy a sanitized report to the clipboard
 //   omarchy-shell io.github.bmaltais.omadisplaylink refresh   look at the dock again now
 // The card itself (BarWidget.qml) is opened by clicking the bar icon.
@@ -64,6 +67,9 @@ Item {
     target: "io.github.bmaltais.omadisplaylink"
     function setup(): void { root.launch("setup") }
     function repair(): void { root.launch("repair") }
+    function reinstall(): void { root.launch("reinstall") }
+    function uninstall(): void { root.launch("uninstall") }
+    function relogin(): void { root.launch("relogin") }
     function report(): void { Quickshell.execDetached([root.cli, "report"]) }
     function refresh(): void { root.refresh() }
     function state(): string { return JSON.stringify({ kind: root.kind, message: root.message }) }

@@ -2,21 +2,33 @@
 # omadisplaylink: the command behind the OmaDisplayLink bar icon, and a friendly front door to the scripts.
 #
 #   omadisplaylink status [--json|--write]   what state the dock is in (--write feeds the bar icon)
-#   omadisplaylink setup                     guided install + configure, in this terminal
+#   omadisplaylink setup [--preview]         guided install + configure, step by step
+#   omadisplaylink reinstall [--preview]     rebuild the evdi module and restart the service
+#   omadisplaylink uninstall [--preview]     remove DisplayLink and everything setup added
 #   omadisplaylink repair                    fix what status says is wrong (asks before it does anything)
+#   omadisplaylink relogin                   log out so a finished setup takes effect
 #   omadisplaylink report                    copy a sanitized report to the clipboard
 #   omadisplaylink doctor                    print that report here
-#   omadisplaylink launch setup|repair       setup or repair, in a floating terminal
+#   omadisplaylink launch <command>          run setup, repair, reinstall, uninstall or relogin in a floating terminal
+# --preview says what each step would do and changes nothing.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 SCRIPTS="$HERE/../scripts"
 STATUS_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/OmaDisplayLink/status"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/OmaDisplayLink"
+# Written when setup finishes; cleared once a session newer than it is running.
+PENDING_FILE="$STATE_DIR/pending-relogin"
+# Written after the one-time "dock detected" notification.
+NOTIFIED_FILE="$STATE_DIR/notified-dock"
 # Demo mode (the plugin test session): a file naming the state to report, and nothing real is touched.
-DEMO_FILE="$HOME/.config/OmaDisplayLink/demo"   # $HOME only: a session sets HOME, not always XDG_CONFIG_HOME
+DEMO_FILE="$HOME/.config/OmaDisplayLink/demo" # $HOME only: a session sets HOME, not always XDG_CONFIG_HOME
 demo() { [[ -r $DEMO_FILE ]]; }
 
-usage() { sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+# shellcheck source=../scripts/steps.sh
+source "$SCRIPTS/steps.sh"
+
+usage() { sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 fail() { echo "omadisplaylink: $*" >&2; exit 1; }
 
 # "connected enabled" counts for the dock's screens: connectors on cards that evdi drives.
@@ -44,8 +56,24 @@ dock_attached() {
   return 1
 }
 
-# Prints "<kind> <message>". Kinds: unconfigured (driver not installed), idle (no dock plugged in),
-# ok (dock screens active), attention (something is wrong and the message says what).
+# A setup is waiting for a new login while the marker is newer than the running Hyprland.
+relogin_pending() {
+  [[ -f $PENDING_FILE ]] || return 1
+  local pid started
+  pid="$(pidof Hyprland | awk '{print $1}')"
+  if [[ -n $pid && -d /proc/$pid ]]; then
+    started="$(stat -c %Y "/proc/$pid")"
+    if ((started > $(stat -c %Y "$PENDING_FILE"))); then
+      rm -f "$PENDING_FILE"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+# Prints "<kind>|<action>|<message>". Kinds: unconfigured (driver not installed), pending (setup done, waiting
+# for a login), idle (no dock plugged in), ok (dock screens active), attention (something is wrong).
+# The action is what the card should offer: setup, relogin, reinstall, service, patch, or nothing.
 compute_status() {
   if demo; then
     # Line 1 of the demo file is the state; line 2, if any, the action the card should offer.
@@ -53,6 +81,7 @@ compute_status() {
     demo_action="$(sed -n 2p "$DEMO_FILE")"
     case "$(head -n1 "$DEMO_FILE")" in
       unconfigured) echo "unconfigured|setup|DisplayLink is not installed on this machine." ;;
+      pending) echo "pending|relogin|Setup finished. Log out and back in to start using the dock." ;;
       ok) echo "ok||2 dock screens active." ;;
       attention) echo "attention|$demo_action|1 of 2 dock screens have no picture. Check the monitor's input source and cable." ;;
       *) echo "idle||No DisplayLink dock is plugged in." ;;
@@ -60,14 +89,26 @@ compute_status() {
     return
   fi
   if ! pacman -Q evdi-dkms displaylink >/dev/null 2>&1; then
-    echo "unconfigured|setup|DisplayLink is not installed on this machine."
+    if dock_attached; then
+      echo "unconfigured|setup|A DisplayLink dock is plugged in, but the driver is not installed."
+    else
+      echo "unconfigured|setup|DisplayLink is not installed on this machine."
+    fi
+    return
+  fi
+  if relogin_pending; then
+    echo "pending|relogin|Setup finished. Log out and back in to start using the dock."
     return
   fi
   if ! dock_attached; then
     echo "idle||No DisplayLink dock is plugged in."
     return
   fi
-  # The service is started by udev when a dock appears and stops when it goes, so check it only now.
+  # The service is started by udev when a dock appears and stops when it goes, so these checks wait for a dock.
+  if ! modinfo evdi >/dev/null 2>&1; then
+    echo "attention|reinstall|The evdi kernel module is missing for this kernel, usually after a kernel update."
+    return
+  fi
   if [[ $(systemctl is-active displaylink.service 2>/dev/null || true) != active ]]; then
     echo "attention|service|The DisplayLink service is not running, so the dock shows nothing."
     return
@@ -97,6 +138,12 @@ cmd_status() {
       # Line 1 is the state, line 2 the sentence the bar shows, line 3 the action the card offers. Only
       # rewrite when it changed, so the bar is not told to redraw for nothing. The JSON on stdout is for the service.
       [[ $(cat "$STATUS_FILE" 2>/dev/null || true) == "$kind"$'\n'"$message"$'\n'"$action" ]] || printf '%s\n%s\n%s' "$kind" "$message" "$action" >"$STATUS_FILE"
+      # A dock is plugged in and nothing is installed: say so once, so the icon is not the only hint.
+      if ! demo && [[ $kind == unconfigured && $message == "A DisplayLink dock"* && ! -f $NOTIFIED_FILE ]]; then
+        mkdir -p "$STATE_DIR"
+        : >"$NOTIFIED_FILE"
+        omarchy-notification-send "DisplayLink dock detected" "Click the DisplayLink icon in the bar to set it up." 2>/dev/null || true
+      fi
       jq -nc --arg kind "$kind" --arg action "$action" --arg message "$message" '{kind: $kind, action: $action, message: $message}'
       ;;
     "") echo "$kind: $message" ;;
@@ -107,39 +154,9 @@ cmd_status() {
 cmd_doctor() {
   if demo; then
     echo "Demo: this would print the sanitized DisplayLink report."
-    read -r -p "Press Enter to close. " _
     return
   fi
-  exec "$SCRIPTS/displaylink-detect.sh" --sanitize
-}
-
-cmd_setup() {
-  if demo; then
-    echo "Demo: this would install and configure DisplayLink. Nothing is changed."
-    read -r -p "Press Enter to close. " _
-    return
-  fi
-  command -v gum >/dev/null 2>&1 || fail "gum is required (it ships with Omarchy)"
-  echo "OmaDisplayLink setup"
-  echo
-  "$SCRIPTS/displaylink-detect.sh" || true
-  echo
-  gum confirm "Install and configure DisplayLink on this machine?" || exit 130
-  if gum confirm "Take a system snapshot first? (recommended)"; then
-    omarchy snapshot create || echo "Snapshot failed; continuing."
-  fi
-  "$SCRIPTS/displaylink-install.sh"
-  "$SCRIPTS/displaylink-configure.sh" --apply-monitors
-  if "$SCRIPTS/displaylink-aquamarine-patch.sh" --needed >/dev/null 2>&1; then
-    echo
-    echo "Hyprland renders on NVIDIA: building the patched Aquamarine..."
-    "$SCRIPTS/displaylink-aquamarine-patch.sh"
-    "$SCRIPTS/displaylink-aquamarine-patch.sh" --install-hook
-  fi
-  cmd_status --write || true
-  echo
-  echo "Done. Log out and back in with the dock attached."
-  read -r -p "Press Enter to close. " _
+  "$SCRIPTS/displaylink-detect.sh" --sanitize
 }
 
 cmd_report() {
@@ -153,17 +170,131 @@ cmd_report() {
   echo "Report copied to the clipboard."
 }
 
+# Parses --preview; demo mode is always a preview.
+preview_flag() {
+  case "${1:-}" in
+    --preview) PREVIEW=1 ;;
+    "") ;;
+    *) fail "unknown option $1" ;;
+  esac
+  demo && PREVIEW=1
+  return 0
+}
+
+need_gum() { ((PREVIEW)) || command -v gum >/dev/null 2>&1 || fail "gum is required (it ships with Omarchy)"; }
+
+# A few lines about this machine, so the first step shows what setup is looking at.
+check_machine() {
+  local driver headers
+  driver="$("$SCRIPTS/displaylink-aquamarine-patch.sh" --nvidia >/dev/null 2>&1 && echo "NVIDIA" || echo "AMD or Intel")"
+  step_ok "Hyprland renders on: $driver"
+  if dock_attached; then step_ok "A DisplayLink dock is plugged in"; else step_skip "No dock is plugged in yet (setup works without one)"; fi
+  headers="$(pacman -Q 2>/dev/null | grep -c 'headers' || true)"
+  if ((headers > 0)); then step_ok "Kernel headers are installed"; else step_skip "Kernel headers will be installed (the driver needs them)"; fi
+}
+
+cmd_setup() {
+  preview_flag "${1:-}"
+  need_gum
+  local nvidia=0
+  "$SCRIPTS/displaylink-aquamarine-patch.sh" --nvidia >/dev/null 2>&1 && nvidia=1
+  echo "OmaDisplayLink setup"
+  echo
+  echo "This will:"
+  echo "  - install the DisplayLink driver packages (evdi-dkms and displaylink, from the AUR)"
+  echo "  - write module, udev and Hyprland environment settings, and add your dock screens to monitors.lua"
+  ((nvidia)) && echo "  - build and install a patched Aquamarine, because Hyprland renders on NVIDIA, and keep it across updates"
+  echo "  - ask you to log out and back in at the end"
+  echo "Your password is asked for where a step needs it, and you can stop at any prompt."
+  echo
+  ask "Go ahead?" || { echo "Cancelled. Nothing was changed."; exit 130; }
+  steps_begin $((nvidia ? 6 : 5))
+
+  step "Check this machine" "A look at what setup will be working with."
+  check_machine
+
+  step "Snapshot" "A system snapshot lets you roll back if something goes wrong."
+  if ((PREVIEW)); then
+    step_would "offer to run: omarchy snapshot create"
+  elif gum confirm "Take a system snapshot first? (recommended)"; then
+    omarchy snapshot create || step_skip "snapshot failed; continuing"
+  else
+    step_skip "skipped"
+  fi
+
+  step "Install the driver" "Installs evdi-dkms (builds a kernel module, takes a minute or two) and displaylink, and enables the service."
+  run_step "install the driver packages" "$SCRIPTS/displaylink-install.sh" || stop_flow
+
+  step "Configure Hyprland and the system" "Stable GPU names, early loading of evdi, the Hyprland environment, and monitor entries for the dock."
+  run_step "write the settings" "$SCRIPTS/displaylink-configure.sh" --apply-monitors || stop_flow
+
+  if ((nvidia)); then
+    step "Build the NVIDIA fix" "Stock Aquamarine cannot drive DisplayLink on NVIDIA, so this builds a patched one (a few minutes) and keeps it across updates."
+    run_step "build and install the patched Aquamarine" "$SCRIPTS/displaylink-aquamarine-patch.sh" || stop_flow
+    run_step "install the update hook" "$SCRIPTS/displaylink-aquamarine-patch.sh" --install-hook || stop_flow
+  fi
+
+  step "Finish" "The dock starts working after you log out and back in with it attached."
+  if ((PREVIEW)); then
+    step_would "mark setup as waiting for a login and offer to log out"
+    echo
+    echo "Preview only: nothing was changed."
+    return 0
+  fi
+  mkdir -p "$STATE_DIR"
+  : >"$PENDING_FILE"
+  cmd_status --write >/dev/null || true
+  step_ok "setup finished"
+  echo
+  if gum confirm "Log out now? Save your work first."; then
+    omarchy system logout
+  else
+    echo "Log out and back in when you are ready; the bar icon will say so until you do."
+  fi
+}
+
+cmd_reinstall() {
+  preview_flag "${1:-}"
+  need_gum
+  echo "OmaDisplayLink reinstall"
+  echo
+  echo "This rebuilds the evdi kernel module for the running kernel and restarts the DisplayLink service."
+  echo "Use it after a kernel update, or if the dock stopped working. It asks for your password."
+  echo
+  ask "Go ahead?" || { echo "Cancelled. Nothing was changed."; exit 130; }
+  local fix=0
+  "$SCRIPTS/displaylink-aquamarine-patch.sh" --needed >/dev/null 2>&1 &&
+    ! "$SCRIPTS/displaylink-aquamarine-patch.sh" --status >/dev/null 2>&1 && fix=1
+  steps_begin $((1 + fix))
+
+  step "Rebuild the driver" "Rebuilds evdi with dkms for this kernel and restarts displaylink.service."
+  run_step "rebuild evdi and restart the service" "$SCRIPTS/displaylink-rebuild.sh" || stop_flow
+
+  if ((fix)); then
+    step "Rebuild the NVIDIA fix" "An update replaced the patched Aquamarine, so this builds it again (a few minutes)."
+    run_step "build and install the patched Aquamarine" "$SCRIPTS/displaylink-aquamarine-patch.sh" || stop_flow
+  fi
+  echo
+  if ((PREVIEW)); then
+    echo "Preview only: nothing was changed."
+  else
+    cmd_status --write >/dev/null || true
+    echo "Done. If the dock screens do not come back, log out and back in."
+  fi
+}
+
+cmd_uninstall() {
+  preview_flag "${1:-}"
+  need_gum
+  if ((PREVIEW)); then "$SCRIPTS/displaylink-uninstall.sh" --preview; else "$SCRIPTS/displaylink-uninstall.sh"; fi
+  ((PREVIEW)) || cmd_status --write >/dev/null || true
+}
+
 # Fixes the one thing status says is wrong. Each branch says what it will do and asks first.
 cmd_repair() {
   local line kind action message
   line="$(compute_status)"
   IFS='|' read -r kind action message <<<"$line"
-  if demo; then
-    echo "Demo: this would repair: ${action:-nothing to repair}. Nothing is changed."
-    read -r -p "Press Enter to close. " _
-    return
-  fi
-  command -v gum >/dev/null 2>&1 || fail "gum is required (it ships with Omarchy)"
   echo "$message"
   echo
   case "$action" in
@@ -171,36 +302,59 @@ cmd_repair() {
       echo "This rebuilds Arch's Aquamarine with the DisplayLink fix and installs it. It takes a few minutes"
       echo "and asks for your password. Log out and back in afterwards."
       echo
+      demo && { echo "Demo: nothing is changed."; return 0; }
       gum confirm "Rebuild and install the patched Aquamarine?" || exit 130
       "$SCRIPTS/displaylink-aquamarine-patch.sh"
       ;;
     service)
       echo "This restarts displaylink.service (the DisplayLink driver process). It asks for your password."
       echo
+      demo && { echo "Demo: nothing is changed."; return 0; }
       gum confirm "Restart the DisplayLink service?" || exit 130
       sudo systemctl restart displaylink.service
       ;;
+    reinstall) cmd_reinstall ;;
     *) echo "Nothing the plugin can repair. If a screen shows no signal, check the monitor's input source and cable." ;;
   esac
-  cmd_status --write >/dev/null || true
-  read -r -p "Press Enter to close. " _
+  demo || cmd_status --write >/dev/null || true
+}
+
+cmd_relogin() {
+  echo "This closes your session and returns to the login screen. Save your work first."
+  echo
+  if demo; then echo "Demo: this would log you out."; return 0; fi
+  gum confirm "Log out now?" || exit 130
+  omarchy system logout
+}
+
+# Runs a command, then waits, so the floating terminal does not vanish before its output is read.
+cmd_term() {
+  local rc=0
+  "$HERE/omadisplaylink" "$@" || rc=$?
+  echo
+  read -r -p "Press Enter to close. " _ || true
+  return "$rc"
 }
 
 cmd_launch() {
   case "${1:-}" in
-    setup | repair) ;;
-    *) fail "launch: expected setup or repair" ;;
+    setup | repair | reinstall | uninstall | relogin) ;;
+    *) fail "launch: expected setup, repair, reinstall, uninstall or relogin" ;;
   esac
-  exec omarchy-launch-floating-terminal-with-presentation "$(printf '%q ' "$HERE/omadisplaylink" "$1")"
+  exec omarchy-launch-floating-terminal-with-presentation "$(printf '%q ' "$HERE/omadisplaylink" _term "$1")"
 }
 
 case "${1:-}" in
   status) cmd_status "${2:-}" ;;
-  setup) cmd_setup ;;
+  setup) cmd_setup "${2:-}" ;;
+  reinstall) cmd_reinstall "${2:-}" ;;
+  uninstall) cmd_uninstall "${2:-}" ;;
+  repair) cmd_repair ;;
+  relogin) cmd_relogin ;;
   doctor) cmd_doctor ;;
   report) cmd_report ;;
-  repair) cmd_repair ;;
   launch) cmd_launch "${2:-}" ;;
+  _term) shift; cmd_term "$@" ;;
   -h | --help | help | "") usage ;;
   *)
     usage >&2
