@@ -45,18 +45,20 @@ Full explanation, verification steps and undo: [docs/displaylink.md](docs/displa
 
 ## Omarchy plugin (in development)
 
-The repo root is also an Omarchy shell plugin (`manifest.json`, `Service.qml`, `BarWidget.qml`, `bin/omadisplaylink`). It adds a bar icon that shows whether the dock screens are working, and opens guided setup or the diagnostic report in a floating terminal. The scripts above stay the real engine and keep working without it.
+The repo root is also an Omarchy shell plugin (`manifest.json`, `Service.qml`, `BarWidget.qml`, `bin/omadisplaylink`). It adds a bar icon (a "D" with a pixel inside it that lights up while a dock is working) and a standard Omarchy card: one sentence about the dock, then only the actions that apply, each with a line saying what it will do. Anything that needs your password opens in a visible terminal and asks first. The scripts above stay the real engine and keep working without it.
 
 ```bash
 omarchy plugin add https://github.com/bmaltais/OmaDisplayLink.git --enable
 ```
 
-Not published to the marketplace yet. The bar icon has been exercised in the devkit's nested test session (all four states, click to open setup or the doctor, in demo mode), not yet on a real shell with a real dock. The command line side works today:
+Not published to the marketplace yet. The bar icon has been exercised in the devkit's nested test session (all four states and the card, in demo mode), not yet on a real shell with a real dock. The command line side works today:
 
 ```bash
 bin/omadisplaylink status     # idle / ok / attention / unconfigured, with a reason
 bin/omadisplaylink setup      # guided install + configure (+ NVIDIA patch and hook)
-bin/omadisplaylink doctor     # sanitized report to paste into an issue
+bin/omadisplaylink repair     # fix what status says is wrong (asks first)
+bin/omadisplaylink report     # copy a sanitized report to the clipboard
+bin/omadisplaylink doctor     # print that report
 ```
 
 ### Developing the plugin

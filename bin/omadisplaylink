@@ -3,8 +3,10 @@
 #
 #   omadisplaylink status [--json|--write]   what state the dock is in (--write feeds the bar icon)
 #   omadisplaylink setup                     guided install + configure, in this terminal
-#   omadisplaylink doctor                    sanitized report you can paste into an issue
-#   omadisplaylink launch setup|doctor       the same, in a floating terminal
+#   omadisplaylink repair                    fix what status says is wrong (asks before it does anything)
+#   omadisplaylink report                    copy a sanitized report to the clipboard
+#   omadisplaylink doctor                    print that report here
+#   omadisplaylink launch setup|repair       setup or repair, in a floating terminal
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
@@ -14,7 +16,7 @@ STATUS_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/OmaDisplayLink/status"
 DEMO_FILE="$HOME/.config/OmaDisplayLink/demo"   # $HOME only: a session sets HOME, not always XDG_CONFIG_HOME
 demo() { [[ -r $DEMO_FILE ]]; }
 
-usage() { sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 fail() { echo "omadisplaylink: $*" >&2; exit 1; }
 
 # "connected enabled" counts for the dock's screens: connectors on cards that evdi drives.
@@ -46,54 +48,56 @@ dock_attached() {
 # ok (dock screens active), attention (something is wrong and the message says what).
 compute_status() {
   if demo; then
+    # Line 1 of the demo file is the state; line 2, if any, the action the card should offer.
+    local demo_action
+    demo_action="$(sed -n 2p "$DEMO_FILE")"
     case "$(head -n1 "$DEMO_FILE")" in
-      unconfigured) echo "unconfigured DisplayLink driver is not installed. Click to set it up." ;;
-      ok) echo "ok 2 dock screen(s) active." ;;
-      attention) echo "attention 1 of 2 dock screens have no picture. Check the monitor input, then run the doctor." ;;
-      *) echo "idle No DisplayLink dock is plugged in." ;;
+      unconfigured) echo "unconfigured|setup|DisplayLink is not installed on this machine." ;;
+      ok) echo "ok||2 dock screens active." ;;
+      attention) echo "attention|$demo_action|1 of 2 dock screens have no picture. Check the monitor's input source and cable." ;;
+      *) echo "idle||No DisplayLink dock is plugged in." ;;
     esac
     return
   fi
   if ! pacman -Q evdi-dkms displaylink >/dev/null 2>&1; then
-    echo "unconfigured DisplayLink driver is not installed. Click to set it up."
+    echo "unconfigured|setup|DisplayLink is not installed on this machine."
     return
   fi
   if ! dock_attached; then
-    echo "idle No DisplayLink dock is plugged in."
+    echo "idle||No DisplayLink dock is plugged in."
     return
   fi
   # The service is started by udev when a dock appears and stops when it goes, so check it only now.
   if [[ $(systemctl is-active displaylink.service 2>/dev/null || true) != active ]]; then
-    echo "attention displaylink.service is not running."
+    echo "attention|service|The DisplayLink service is not running, so the dock shows nothing."
     return
   fi
   if "$SCRIPTS/displaylink-aquamarine-patch.sh" --needed >/dev/null 2>&1 &&
     ! "$SCRIPTS/displaylink-aquamarine-patch.sh" --status >/dev/null 2>&1; then
-    echo "attention Aquamarine lacks the NVIDIA fix (an update replaced it). Click to repair."
+    echo "attention|patch|An update replaced the NVIDIA fix in Aquamarine, so the dock screens have no picture."
     return
   fi
   local connected enabled
   read -r connected enabled < <(evdi_outputs)
   if ((connected > 0 && enabled < connected)); then
-    echo "attention $((connected - enabled)) of $connected dock screens have no picture. Check the monitor input, then run the doctor."
+    echo "attention||$((connected - enabled)) of $connected dock screens have no picture. Check the monitor's input source and cable."
   else
-    echo "ok $enabled dock screen(s) active."
+    echo "ok||$enabled dock screen(s) active."
   fi
 }
 
 cmd_status() {
-  local mode="${1:-}" line kind message
+  local mode="${1:-}" line kind action message
   line="$(compute_status)"
-  kind="${line%% *}"
-  message="${line#* }"
+  IFS='|' read -r kind action message <<<"$line"
   case "$mode" in
-    --json) jq -nc --arg kind "$kind" --arg message "$message" '{kind: $kind, message: $message}' ;;
+    --json) jq -nc --arg kind "$kind" --arg action "$action" --arg message "$message" '{kind: $kind, action: $action, message: $message}' ;;
     --write)
       mkdir -p "$(dirname "$STATUS_FILE")"
-      # Line 1 is the state, line 2 the sentence the bar icon shows as its tooltip. Only rewrite when it
-      # changed, so the bar is not told to redraw for nothing. The JSON on stdout is for the service.
-      [[ $(cat "$STATUS_FILE" 2>/dev/null || true) == "$kind"$'\n'"$message" ]] || printf '%s\n%s' "$kind" "$message" >"$STATUS_FILE"
-      jq -nc --arg kind "$kind" --arg message "$message" '{kind: $kind, message: $message}'
+      # Line 1 is the state, line 2 the sentence the bar shows, line 3 the action the card offers. Only
+      # rewrite when it changed, so the bar is not told to redraw for nothing. The JSON on stdout is for the service.
+      [[ $(cat "$STATUS_FILE" 2>/dev/null || true) == "$kind"$'\n'"$message"$'\n'"$action" ]] || printf '%s\n%s\n%s' "$kind" "$message" "$action" >"$STATUS_FILE"
+      jq -nc --arg kind "$kind" --arg action "$action" --arg message "$message" '{kind: $kind, action: $action, message: $message}'
       ;;
     "") echo "$kind: $message" ;;
     *) fail "status: unknown option $mode" ;;
@@ -138,10 +142,54 @@ cmd_setup() {
   read -r -p "Press Enter to close. " _
 }
 
+cmd_report() {
+  if demo; then
+    echo "Demo: this would copy the sanitized report to the clipboard."
+    return
+  fi
+  command -v wl-copy >/dev/null 2>&1 || fail "wl-copy is required (pacman -S wl-clipboard)"
+  "$SCRIPTS/displaylink-detect.sh" --sanitize | wl-copy
+  omarchy-notification-send "DisplayLink report copied" "Paste it into a GitHub issue." 2>/dev/null || true
+  echo "Report copied to the clipboard."
+}
+
+# Fixes the one thing status says is wrong. Each branch says what it will do and asks first.
+cmd_repair() {
+  local line kind action message
+  line="$(compute_status)"
+  IFS='|' read -r kind action message <<<"$line"
+  if demo; then
+    echo "Demo: this would repair: ${action:-nothing to repair}. Nothing is changed."
+    read -r -p "Press Enter to close. " _
+    return
+  fi
+  command -v gum >/dev/null 2>&1 || fail "gum is required (it ships with Omarchy)"
+  echo "$message"
+  echo
+  case "$action" in
+    patch)
+      echo "This rebuilds Arch's Aquamarine with the DisplayLink fix and installs it. It takes a few minutes"
+      echo "and asks for your password. Log out and back in afterwards."
+      echo
+      gum confirm "Rebuild and install the patched Aquamarine?" || exit 130
+      "$SCRIPTS/displaylink-aquamarine-patch.sh"
+      ;;
+    service)
+      echo "This restarts displaylink.service (the DisplayLink driver process). It asks for your password."
+      echo
+      gum confirm "Restart the DisplayLink service?" || exit 130
+      sudo systemctl restart displaylink.service
+      ;;
+    *) echo "Nothing the plugin can repair. If a screen shows no signal, check the monitor's input source and cable." ;;
+  esac
+  cmd_status --write >/dev/null || true
+  read -r -p "Press Enter to close. " _
+}
+
 cmd_launch() {
   case "${1:-}" in
-    setup | doctor) ;;
-    *) fail "launch: expected setup or doctor" ;;
+    setup | repair) ;;
+    *) fail "launch: expected setup or repair" ;;
   esac
   exec omarchy-launch-floating-terminal-with-presentation "$(printf '%q ' "$HERE/omadisplaylink" "$1")"
 }
@@ -150,6 +198,8 @@ case "${1:-}" in
   status) cmd_status "${2:-}" ;;
   setup) cmd_setup ;;
   doctor) cmd_doctor ;;
+  report) cmd_report ;;
+  repair) cmd_repair ;;
   launch) cmd_launch "${2:-}" ;;
   -h | --help | help | "") usage ;;
   *)

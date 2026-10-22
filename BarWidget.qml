@@ -1,25 +1,43 @@
-// The bar icon: a USB symbol that says how the DisplayLink dock is doing, and opens setup or the doctor.
-// What it draws comes from a file the service keeps up to date (line 1 the state, line 2 a sentence),
-// because the icon and the service are separate instances.
+// The bar icon and its card. The icon is the plugin's "D" mark, coloured by how the dock is doing; clicking
+// it opens a card that says in a sentence what is going on and offers only actions that apply, each with
+// a line saying what it will do. What it shows comes from a file the service keeps up to date (line 1 the
+// state, line 2 a sentence, line 3 the action that would help), because the icon and the service are
+// separate instances.
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
   id: root
   moduleName: "io.github.bmaltais.omadisplaylink"
 
+  readonly property string pluginId: "io.github.bmaltais.omadisplaylink"
   readonly property string statusFile: (Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache") + "/OmaDisplayLink/status"
-  readonly property var glyphs: ({
-    unconfigured: "\uf067", // plus: nothing installed yet
-    idle: "\uf287",         // usb: installed, no dock plugged in
-    ok: "\uf287",           // usb: dock screens are working
-    attention: "\uf071"     // warning triangle
-  })
+  readonly property string guideUrl: "https://github.com/bmaltais/OmaDisplayLink#readme"
+
   property string kind: "unconfigured"
   property string message: "DisplayLink status is not known yet."
+  // What would help, or "": setup, patch (rebuild the NVIDIA fix) or service (restart displaylink.service).
+  property string action: ""
+  property bool popupOpen: false
+
+  readonly property color markColor: kind === "attention" ? Commons.Color.urgent
+    : kind === "ok" ? Commons.Color.accent
+    : (root.bar ? root.bar.barForeground : Commons.Color.foreground)
+  readonly property real markOpacity: kind === "idle" ? 0.6 : kind === "unconfigured" ? 0.4 : 1.0
+
+  function close() { popupOpen = false }
+  function run(what) {
+    popupOpen = false
+    if (root.bar) root.bar.run("omarchy-shell " + root.pluginId + " " + what)
+  }
+  function openGuide() {
+    popupOpen = false
+    Quickshell.execDetached(["xdg-open", root.guideUrl])
+  }
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
@@ -33,8 +51,9 @@ BarWidget {
     onLoaded: {
       var lines = text().split("\n")
       var k = lines[0].trim()
-      root.kind = root.glyphs[k] !== undefined ? k : "unconfigured"
-      root.message = lines.slice(1).join(" ").trim() || root.message
+      root.kind = ["unconfigured", "idle", "ok", "attention"].indexOf(k) >= 0 ? k : "unconfigured"
+      root.message = (lines[1] || "").trim() || root.message
+      root.action = (lines[2] || "").trim()
     }
     onLoadFailed: root.kind = "unconfigured"
   }
@@ -43,17 +62,118 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.glyphs[root.kind]
-    tooltipText: "OmaDisplayLink: " + root.message
-    // Lit while the dock is working; red when something needs a look.
-    active: root.kind === "ok" || root.kind === "attention"
-    useActiveColor: true
-    activeColor: root.kind === "attention" ? Color.urgent : Color.accent
+    tooltipText: "DisplayLink: " + root.message
+    iconComponent: Component {
+      Item {
+        DisplayLinkMark {
+          x: (parent.width - width) / 2
+          y: (parent.height - height) / 2
+          iconSize: button.iconSize
+          color: root.markColor
+          opacity: root.markOpacity
+          linked: root.kind === "ok" || root.kind === "attention"
+        }
+      }
+    }
     onPressed: function (mouse) {
-      if (!root.bar) return
-      // Right click looks again; left click opens setup (nothing installed) or the doctor.
-      if (mouse === Qt.RightButton) root.bar.run("omarchy-shell io.github.bmaltais.omadisplaylink refresh")
-      else root.bar.run("omarchy-shell io.github.bmaltais.omadisplaylink open")
+      if (mouse === Qt.RightButton) root.run("refresh")
+      else root.popupOpen = !root.popupOpen
+    }
+  }
+
+  PopupCard {
+    id: popup
+    anchorItem: root
+    bar: root.bar
+    owner: root
+    open: root.popupOpen
+    contentWidth: popup.fittedContentWidth(Style.space(320))
+    contentHeight: popup.fittedContentHeight(column.implicitHeight)
+
+    Column {
+      id: column
+      anchors.fill: parent
+      spacing: Style.space(10)
+
+      Row {
+        spacing: Style.space(10)
+        width: parent.width
+
+        DisplayLinkMark {
+          anchors.verticalCenter: parent.verticalCenter
+          iconSize: Style.space(32)
+          color: root.markColor
+          linked: root.kind === "ok" || root.kind === "attention"
+        }
+
+        Column {
+          width: parent.width - Style.space(42)
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.space(2)
+
+          Text {
+            width: parent.width
+            textFormat: Text.PlainText
+            text: "DisplayLink dock"
+            color: root.bar.foreground
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.body
+            font.bold: true
+          }
+          Text {
+            width: parent.width
+            textFormat: Text.PlainText
+            text: root.message
+            color: root.kind === "attention" ? Commons.Color.urgent : Qt.darker(root.bar.foreground, 1.3)
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+        }
+      }
+
+      PanelSeparator { width: parent.width; foreground: root.bar.foreground }
+
+      // Only the actions that apply. Each says what it will do before it does it.
+      Repeater {
+        model: {
+          var items = []
+          if (root.action === "setup") items.push({ id: "setup", label: "Set up DisplayLink",
+            note: "Installs the driver and configures Hyprland. Opens a terminal and asks for your password." })
+          if (root.action === "patch") items.push({ id: "repair", label: "Repair the NVIDIA fix",
+            note: "An update replaced the patched Aquamarine. Rebuilds it in a terminal and asks for your password." })
+          if (root.action === "service") items.push({ id: "repair", label: "Restart the DisplayLink service",
+            note: "Restarts displaylink.service in a terminal and asks for your password." })
+          items.push({ id: "report", label: "Copy report",
+            note: "Copies a sanitized report to the clipboard to paste into a GitHub issue. Changes nothing." })
+          items.push({ id: "guide", label: "Open the guide",
+            note: "Opens the README in your browser." })
+          return items
+        }
+
+        Column {
+          width: column.width
+          spacing: Style.space(2)
+
+          Button {
+            width: parent.width
+            text: modelData.label
+            foreground: root.bar.foreground
+            fontFamily: root.bar.fontFamily
+            bordered: true
+            onClicked: modelData.id === "guide" ? root.openGuide() : root.run(modelData.id)
+          }
+          Text {
+            width: parent.width
+            textFormat: Text.PlainText
+            text: modelData.note
+            color: Qt.darker(root.bar.foreground, 1.5)
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+        }
+      }
     }
   }
 }

@@ -1,11 +1,12 @@
-// OmaDisplayLink: keeps the bar icon's status current and opens setup or the doctor in a floating
+// OmaDisplayLink: keeps the bar icon's status current and runs setup or repair in a floating
 // terminal (installing needs sudo, so it happens where you can see and answer it). All the work is
 // done by bin/omadisplaylink; this file only asks it, on a timer and when something happens.
 //
-//   omarchy-shell io.github.bmaltais.omadisplaylink open      setup if nothing is installed, else the doctor
 //   omarchy-shell io.github.bmaltais.omadisplaylink setup     guided install and configure
-//   omarchy-shell io.github.bmaltais.omadisplaylink doctor    a report to paste into an issue
+//   omarchy-shell io.github.bmaltais.omadisplaylink repair    fix what the card says is wrong
+//   omarchy-shell io.github.bmaltais.omadisplaylink report    copy a sanitized report to the clipboard
 //   omarchy-shell io.github.bmaltais.omadisplaylink refresh   look at the dock again now
+// The card itself (BarWidget.qml) is opened by clicking the bar icon.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -61,9 +62,9 @@ Item {
 
   IpcHandler {
     target: "io.github.bmaltais.omadisplaylink"
-    function open(): void { root.launch(root.kind === "unconfigured" ? "setup" : "doctor") }
     function setup(): void { root.launch("setup") }
-    function doctor(): void { root.launch("doctor") }
+    function repair(): void { root.launch("repair") }
+    function report(): void { Quickshell.execDetached([root.cli, "report"]) }
     function refresh(): void { root.refresh() }
     function state(): string { return JSON.stringify({ kind: root.kind, message: root.message }) }
   }
