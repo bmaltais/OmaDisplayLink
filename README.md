@@ -8,6 +8,8 @@ If your DisplayLink screens show **no signal**, stay at **0x0**, or Hyprland log
 >
 > This is an independent community project. It is not affiliated with or endorsed by Omarchy, Hyprland, Synaptics/DisplayLink, or any dock vendor.
 
+![OmaDisplayLink: guided setup in a terminal, and the bar card in its four states](preview.png)
+
 ## Install
 
 **BASH** · Install current upstream

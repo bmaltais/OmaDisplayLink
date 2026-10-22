@@ -10,6 +10,7 @@ Live files under `~/.config/` and `/etc/` are applied copies. Templates under `c
 docs/displaylink.md        # the full guide (detect, install, configure, verify, undo)
 docs/manual-install.md     # the command-line path, separate from the plugin install in the README
 docs/development.md        # the plugin's test session and demo mode
+screenshots/ + preview.png  # source captures and the marketplace preview (scripts/make-preview.sh)
 docs/images/               # README screenshots, captured in the demo mode (no personal data: crop the bar clock and test labels out)
 config/displaylink/        # generic templates and the Aquamarine patch
 scripts/displaylink-*.sh   # detect / install / configure / patch / rebuild / uninstall / benchmark / dryrun
