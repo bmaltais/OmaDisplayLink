@@ -35,8 +35,8 @@ card() {
   magick "$work/r.png" \( +clone -background black -shadow 70x22+0+16 \) +swap -background none -layers merge +repage "$dest"
 }
 
-card "$shots/setup-steps.png"        "$work/steps.png"  780x540+0+0    88 10
-card "$shots/card-not-installed.png" "$work/c-not.png"  340x277+87+26 100 8
+card "$shots/terminal-steps.png"        "$work/steps.png"  780x540+0+0    88 10
+card "$shots/card-no-driver.png" "$work/c-not.png"  340x277+87+26 100 8
 card "$shots/card-attention.png"     "$work/c-attn.png" 340x312+87+26 100 8
 card "$shots/card-working.png"       "$work/c-ok.png"   340x207+87+26 100 8
 card "$shots/card-log-out.png"       "$work/c-out.png"  340x312+87+26 100 8
