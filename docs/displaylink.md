@@ -113,7 +113,7 @@ hyprctl reload
 hyprctl configerrors
 ```
 
-`AQ_*` changes in `~/.config/uwsm/env-hyprland` and the evdi udev symlinks need a **new Hyprland session** (log out / reboot), not only `hyprctl reload`.
+`AQ_*` changes in `~/.config/uwsm/env-hyprland` and the evdi udev symlinks need a **new Hyprland session** (log out / reboot), not only `hyprctl reload`. The plugin's setup skips the logout prompt, and clears its "log out to finish" marker, when a dock screen is already enabled (`/sys/class/drm` connectors on an evdi card), since nothing is left to wait for; the settings still load at the next login.
 
 Lid-closed + externals-only on a laptop is already an Omarchy feature (`Super + Ctrl + Delete`, or close the lid with externals connected). This project does not replace that.
 

@@ -48,6 +48,13 @@ evdi_outputs() {
   echo "$connected $enabled"
 }
 
+# True when at least one dock screen is already lit, which can happen before the first login after setup.
+dock_live() {
+  local connected enabled
+  read -r connected enabled < <(evdi_outputs)
+  ((enabled > 0))
+}
+
 dock_attached() {
   local dev
   for dev in /sys/bus/usb/devices/*; do
@@ -59,6 +66,11 @@ dock_attached() {
 # A setup is waiting for a new login while the marker is newer than the running Hyprland.
 relogin_pending() {
   [[ -f $PENDING_FILE ]] || return 1
+  # A dock that is already showing a picture needs no login to start.
+  if dock_live; then
+    rm -f "$PENDING_FILE"
+    return 1
+  fi
   local pid started
   pid="$(pidof Hyprland | awk '{print $1}')"
   if [[ -n $pid && -d /proc/$pid ]]; then
@@ -242,7 +254,7 @@ cmd_setup() {
     run_step "install the update hook" "$SCRIPTS/displaylink-aquamarine-patch.sh" --install-hook || stop_flow
   fi
 
-  step "Finish" "The dock starts working after you log out and back in with it attached."
+  step "Finish" "If the dock screens are not active yet, you log out and back in with it attached; if they already are, nothing more is needed."
   if ((PREVIEW)); then
     step_would "mark setup as waiting for a login and offer to log out"
     echo
@@ -252,6 +264,12 @@ cmd_setup() {
   if ((SIMULATE)); then
     # The demo's card follows the flow: setup done, waiting for a login.
     printf 'pending\nrelogin\n' >"$DEMO_FILE"
+  elif dock_live; then
+    # The dock came up without a login (for example on an Intel or AMD GPU): nothing to wait for.
+    cmd_status --write >/dev/null || true
+    step_ok "setup finished, and the dock screens are already active"
+    echo "The new settings are read at your next login; nothing to do now."
+    return 0
   else
     mkdir -p "$STATE_DIR"
     : >"$PENDING_FILE"

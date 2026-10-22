@@ -19,9 +19,10 @@ BarWidget {
   readonly property string guideUrl: "https://github.com/bmaltais/OmaDisplayLink#readme"
 
   property string kind: "unconfigured"
-  property string message: "DisplayLink status is not known yet."
+  property string message: "DisplayLink is not set up yet."
   // What would help, or "": setup, relogin, reinstall, patch (rebuild the NVIDIA fix) or service (restart displaylink.service).
-  property string action: ""
+  // Starts as setup: until the service has written the status file this is a first run, and setup is the one thing to do.
+  property string action: "setup"
   property bool popupOpen: false
 
   readonly property color markColor: kind === "attention" ? Commons.Color.urgent
@@ -55,7 +56,7 @@ BarWidget {
       root.message = (lines[1] || "").trim() || root.message
       root.action = (lines[2] || "").trim()
     }
-    onLoadFailed: root.kind = "unconfigured"
+    onLoadFailed: { root.kind = "unconfigured"; root.action = "setup" }
   }
 
   BarIconButton {
