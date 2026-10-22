@@ -43,6 +43,22 @@ Then **reboot with the dock attached** (or log out and back in), and plug it int
 
 Full explanation, verification steps and undo: [docs/displaylink.md](docs/displaylink.md).
 
+## Omarchy plugin (in development)
+
+The repo root is also an Omarchy shell plugin (`manifest.json`, `Service.qml`, `BarWidget.qml`, `bin/omadisplaylink`). It adds a bar icon that shows whether the dock screens are working, and opens guided setup or the diagnostic report in a floating terminal. The scripts above stay the real engine and keep working without it.
+
+```bash
+omarchy plugin add https://github.com/bmaltais/OmaDisplayLink.git --enable
+```
+
+Not published to the marketplace yet and the bar icon has not been exercised in a live shell. The command line side works today:
+
+```bash
+bin/omadisplaylink status     # idle / ok / attention / unconfigured, with a reason
+bin/omadisplaylink setup      # guided install + configure (+ NVIDIA patch and hook)
+bin/omadisplaylink doctor     # sanitized report to paste into an issue
+```
+
 ## Tested hardware
 
 | | |

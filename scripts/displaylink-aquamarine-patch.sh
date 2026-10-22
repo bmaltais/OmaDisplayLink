@@ -6,6 +6,7 @@
 #   (none)          build the patched package and install it
 #   --build-only    build it into ~/.cache/OmaDisplayLink, do not install
 #   --status        print "patched" or "stock" for the installed library (exit 0 / 1)
+#   --needed        exit 0 if this machine needs the fix (DisplayLink installed, Hyprland renders on NVIDIA)
 #   --ensure        do nothing unless DisplayLink + NVIDIA are in use and the installed library
 #                   lacks the fix; then rebuild, install and notify. Meant for the update hook.
 #   --install-hook  run --ensure after every `omarchy update` (writes one file under ~/.config/omarchy/hooks)
@@ -153,6 +154,9 @@ case "$MODE" in
     mkdir -p "$keep"
     cp "$PKG" "$keep/"
     echo "Built $keep/$(basename "$PKG") (not installed)."
+    ;;
+  --needed)
+    uses_displaylink_on_nvidia
     ;;
   --status)
     if has_fix; then echo "patched"; else echo "stock"; exit 1; fi
