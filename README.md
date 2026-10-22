@@ -49,13 +49,13 @@ Omarchy warns that plugins run unsandboxed inside your shell and asks you to con
 
 The card says what state things are in and offers the one thing to do. Nothing is installed yet, so that is setup.
 
-![The card before anything is installed: a "Not installed" status and a blue Set up DisplayLink button](docs/images/01-card-not-installed.png)
+![The card before anything is installed: a "Not installed" status and a blue Set up DisplayLink button](docs/images/01-card-no-driver.png)
 
 ### 3. Answer the questions
 
 A terminal opens in Omarchy's style. First it says what it is about to do and asks for a go-ahead. You can stop at any prompt, and nothing has changed until you answer yes.
 
-![The first question: a summary of what setup will do, and Go ahead? with Yes and No](docs/images/02-setup-question.png)
+![The first question: a summary of what setup will do, and Go ahead? with Yes and No](docs/images/02-first-question.png)
 
 Then it offers a **system snapshot**, which lets you roll the whole machine back if something goes wrong. It takes a few seconds and is worth saying yes to.
 
@@ -67,7 +67,7 @@ Where a step needs administrator rights, the terminal asks for your password.
 
 Each step has a title, a line saying what it does, and a check mark when it is done. If a step fails it stops, says which one, and tells you how to ask for help.
 
-![All seven steps checked off, ending with Log out now?](docs/images/04-setup-steps.png)
+![All seven steps checked off, ending with Log out now?](docs/images/04-steps.png)
 
 | Step | What it does | Time |
 |---|---|---|
@@ -85,7 +85,7 @@ On AMD or Intel there is no step 6, so setup has six steps.
 
 The dock only starts working after a fresh login, because Hyprland reads its graphics settings once at startup. The last question offers to log you out for you; save your work first. Plug the dock into a **USB 3 / SuperSpeed** port, and have it attached when you log back in.
 
-![The end of setup: Log out and back in when you are ready, and Omarchy's Done prompt](docs/images/05-setup-done.png)
+![The end of setup: Log out and back in when you are ready, and Omarchy's Done prompt](docs/images/05-done.png)
 
 If you answer No, nothing is lost: the icon stays on **Log out to finish**, and the card keeps a **Log out now** button until you have logged in again.
 
