@@ -74,6 +74,39 @@ pr_state() {
   jq -r 'if .merged then "merged" else (.state // "unknown") end' <<<"$json" 2>/dev/null || echo unknown
 }
 
+# Fetches Arch's packaging repo at tag $1 into $2 and checks it out only if the tag carries a good PGP
+# signature from a key in archlinux-keyring (the keys pacman itself trusts, installed with the system).
+# $3 is a throwaway GNUPGHOME. A moved or forged tag fails the check, so no per-version pin is needed.
+fetch_signed_packaging() {
+  local tag="$1" dest="$2" gnupg="$3" keyring=/usr/share/pacman/keyrings fpr status
+  [[ -r $keyring/archlinux.gpg ]] || { echo "archlinux-keyring is missing ($keyring/archlinux.gpg)." >&2; return 1; }
+  mkdir -m 700 -p "$gnupg"
+  GNUPGHOME="$gnupg" gpg -q --batch --import "$keyring/archlinux.gpg" 2>/dev/null || return 1
+  # Drop keys Arch has revoked; the revoked list holds one fingerprint per line.
+  if [[ -r $keyring/archlinux-revoked ]]; then
+    while read -r fpr; do
+      [[ $fpr =~ ^[0-9A-Fa-f]{40}$ ]] && GNUPGHOME="$gnupg" gpg -q --batch --yes --delete-keys "$fpr" 2>/dev/null || true
+    done <"$keyring/archlinux-revoked"
+  fi
+
+  git init -q "$dest" || return 1
+  git -C "$dest" fetch -q --depth 1 https://gitlab.archlinux.org/archlinux/packaging/packages/aquamarine.git tag "$tag" 2>/dev/null || {
+    echo "No Arch packaging tag $tag." >&2
+    return 1
+  }
+  # A valid signature on a different tag (an older release) must not pass for this one.
+  [[ "$(git -C "$dest" cat-file -t "$tag")" == tag && "$(git -C "$dest" cat-file tag "$tag" | sed -n 's/^tag //p')" == "$tag" ]] || {
+    echo "Arch packaging tag $tag is not a signed tag of that name." >&2
+    return 1
+  }
+  status="$(GNUPGHOME="$gnupg" git -C "$dest" verify-tag --raw "$tag" 2>&1 || true)"
+  if ! grep -q '^\[GNUPG:\] GOODSIG ' <<<"$status" || grep -Eq '^\[GNUPG:\] (BADSIG|ERRSIG|EXPSIG|EXPKEYSIG|REVKEYSIG) ' <<<"$status"; then
+    echo "Arch packaging tag $tag has no good signature from archlinux-keyring; refusing to build it." >&2
+    return 1
+  fi
+  git -C "$dest" checkout -q --detach "$tag^{commit}"
+}
+
 work=""
 cleanup() { [[ -n "$work" ]] && rm -rf "$work"; return 0; }
 trap cleanup EXIT
@@ -82,7 +115,7 @@ trap cleanup EXIT
 build_package() {
   # Install the build tools first; the command check after it would otherwise fail on a trimmed system.
   "$SCRIPT_DIR/displaylink-prereqs.sh" --build || return 1
-  need_cmd pacman makepkg git patch curl python3 bsdtar || return 1
+  need_cmd pacman makepkg git gpg patch curl python3 bsdtar || return 1
 
   # Installed version looks like 0.15.1-1 (stock) or 0.15.1-1.1 (already patched).
   local installed pkgver pkgrel
@@ -94,11 +127,7 @@ build_package() {
 
   # Build outside the repo: it may live on a FUSE mount, and makepkg needs a plain filesystem.
   work="$(mktemp -d)"
-  git clone -q --depth 1 --branch "$pkgver-$pkgrel" \
-    https://gitlab.archlinux.org/archlinux/packaging/packages/aquamarine.git "$work/aquamarine" 2>/dev/null || {
-    echo "No Arch packaging tag $pkgver-$pkgrel." >&2
-    return 1
-  }
+  fetch_signed_packaging "$pkgver-$pkgrel" "$work/aquamarine" "$work/gnupg" || return 1
 
   [[ -s "$PATCH" ]] || { echo "Patch file is missing or empty: $PATCH" >&2; return 3; }
 

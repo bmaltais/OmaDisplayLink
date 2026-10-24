@@ -26,7 +26,7 @@ DisplayLink docks are not ordinary USB-C or DisplayPort docks. They send video o
 
 - **A bar icon and a card** that say whether the dock is working and offer the one thing to do next: set up, log out to finish, repair, reinstall or uninstall.
 - **Guided setup** in a visible terminal: numbered steps, a plain-language line for each, and a question before anything changes.
-- **On NVIDIA**, a patched Aquamarine (Hyprland's backend library) with the CPU-copy fallback from [hyprwm/aquamarine#279](https://github.com/hyprwm/aquamarine/pull/279), because stock Aquamarine cannot drive evdi outputs on NVIDIA. An update hook re-applies it after `omarchy update`.
+- **On NVIDIA**, a patched Aquamarine (Hyprland's backend library) with the CPU-copy fallback from [hyprwm/aquamarine#279](https://github.com/hyprwm/aquamarine/pull/279), because stock Aquamarine cannot drive evdi outputs on NVIDIA. An update hook re-applies it after `omarchy update`. The build uses Arch's packaging source only if its release tag is PGP-signed by a key in `archlinux-keyring`.
 - A **full undo**, a **diagnostic report** you can paste into an issue, and a **benchmark** of what the DisplayLink path costs.
 
 Everything is a plain shell script you can read, and every change has a documented undo.
