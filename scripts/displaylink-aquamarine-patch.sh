@@ -80,7 +80,7 @@ pr_state() {
 fetch_signed_packaging() {
   local tag="$1" dest="$2" gnupg="$3" keyring=/usr/share/pacman/keyrings fpr status
   [[ -r $keyring/archlinux.gpg ]] || { echo "archlinux-keyring is missing ($keyring/archlinux.gpg)." >&2; return 1; }
-  mkdir -m 700 -p "$gnupg"
+  mkdir -p "$gnupg" && chmod 700 "$gnupg"
   GNUPGHOME="$gnupg" gpg -q --batch --import "$keyring/archlinux.gpg" 2>/dev/null || return 1
   # Drop keys Arch has revoked; the revoked list holds one fingerprint per line.
   if [[ -r $keyring/archlinux-revoked ]]; then

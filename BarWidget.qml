@@ -69,7 +69,8 @@ BarWidget {
         DisplayLinkMark {
           x: (parent.width - width) / 2
           y: (parent.height - height) / 2
-          iconSize: button.iconSize
+          // BarIconButton.iconSize only exists on newer shells; the bar tokens exist on all.
+          iconSize: Math.min(Style.bar.iconCanvas, Style.bar.iconSize || Style.bar.iconCanvas)
           color: root.markColor
           opacity: root.markOpacity
           linked: root.kind === "ok" || root.kind === "attention"
