@@ -134,6 +134,11 @@ compute_status() {
     return
   fi
   if "$SCRIPTS/displaylink-gpu.sh" --stale >/dev/null 2>&1; then
+    # The sync database is as of the last pacman -Sy: if it still lists an older Aquamarine, updating would not help yet.
+    if "$SCRIPTS/displaylink-gpu.sh" --mirror-behind >/dev/null 2>&1; then
+      echo "attention||Aquamarine $("$SCRIPTS/displaylink-gpu.sh" --version) cannot drive dock screens on NVIDIA. The Arch mirror has no 0.16.0 yet (as of the last package sync); try again later."
+      return
+    fi
     echo "attention|update|Aquamarine $("$SCRIPTS/displaylink-gpu.sh" --version) cannot drive dock screens on NVIDIA; 0.16.0 or newer can. Run omarchy update."
     return
   fi
@@ -215,7 +220,11 @@ check_machine() {
   if [[ $driver == NVIDIA ]]; then
     aq="$("$SCRIPTS/displaylink-gpu.sh" --version || true)"
     if [[ -n $aq ]] && (($(vercmp "$aq" 0.16.0) < 0)); then
-      step_skip "Aquamarine $aq is too old to drive dock screens on NVIDIA; run omarchy update (0.16.0 or newer)"
+      if "$SCRIPTS/displaylink-gpu.sh" --mirror-behind >/dev/null 2>&1; then
+        step_skip "Aquamarine $aq is too old to drive dock screens on NVIDIA, and the Arch mirror has no 0.16.0 yet; try omarchy update later"
+      else
+        step_skip "Aquamarine $aq is too old to drive dock screens on NVIDIA; run omarchy update (0.16.0 or newer)"
+      fi
     else
       step_ok "Aquamarine ${aq:-?} can drive dock screens on NVIDIA"
     fi

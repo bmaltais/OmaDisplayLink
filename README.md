@@ -26,7 +26,7 @@ DisplayLink docks are not ordinary USB-C or DisplayPort docks. They send video o
 
 - **A bar icon and a card** that say whether the dock is working and offer the one thing to do next: set up, log out to finish, repair, reinstall or uninstall.
 - **Guided setup** in a visible terminal: numbered steps, a plain-language line for each, and a question before anything changes.
-- **On NVIDIA**, nothing extra: Aquamarine 0.16.0 and newer (Hyprland's backend library) carries the CPU-copy fallback from [hyprwm/aquamarine#279](https://github.com/hyprwm/aquamarine/pull/279) that evdi outputs need. On an older Aquamarine the card says to run `omarchy update`.
+- **On NVIDIA**, nothing extra: Aquamarine 0.16.0 and newer (Hyprland's backend library) carries the CPU-copy fallback from [hyprwm/aquamarine#279](https://github.com/hyprwm/aquamarine/pull/279) that evdi outputs need. On an older Aquamarine the card offers **Update Omarchy** (or says to try later while the Arch mirror has no 0.16.0 yet).
 - A **full undo**, a **diagnostic report** you can paste into an issue, and a **benchmark** of what the DisplayLink path costs.
 
 Everything is a plain shell script you can read, and every change has a documented undo.

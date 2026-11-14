@@ -13,7 +13,7 @@ cd OmaDisplayLink
 ./scripts/displaylink-configure.sh --apply-monitors
 ```
 
-**NVIDIA only:** Aquamarine must be 0.16.0 or newer. Check with `./scripts/displaylink-gpu.sh --stale` (exit 0 means too old: run `omarchy update`).
+**NVIDIA only:** Aquamarine must be 0.16.0 or newer. Check with `./scripts/displaylink-gpu.sh --stale` (exit 0 means too old: run `omarchy update`; if `./scripts/displaylink-gpu.sh --mirror-behind` also exits 0, the synced package database has no 0.16.0 yet, so try again later).
 
 Then **log out and back in with the dock attached** (or reboot), and plug it into a USB 3 / SuperSpeed port when you can. Take a snapshot first if you want an easy way back: `omarchy snapshot create`.
 
