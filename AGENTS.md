@@ -12,8 +12,8 @@ docs/manual-install.md     # the command-line path, separate from the plugin ins
 docs/development.md        # the plugin's test session and demo mode
 screenshots/ + preview.png  # source captures and the marketplace preview (scripts/make-preview.sh)
 docs/images/               # README screenshots, captured in the demo mode (no personal data: crop the bar clock and test labels out)
-config/displaylink/        # generic templates and the Aquamarine patch
-scripts/displaylink-*.sh   # detect / install / configure / patch / rebuild / uninstall / benchmark / dryrun
+config/displaylink/        # generic templates
+scripts/displaylink-*.sh   # detect / install / configure / gpu / rebuild / uninstall / benchmark / dryrun
 scripts/steps.sh           # numbered-step output shared by setup, reinstall and uninstall (PREVIEW=1 changes nothing)
 scripts/lib.sh             # shared helpers
 ```
@@ -30,6 +30,6 @@ Safe: product names (for example "Plugable UD-3900PDZ"), device-class vendor IDs
 - Hyprland variables needed before the compositor starts (`AQ_*`) go in `~/.config/uwsm/env-hyprland`, not only `hl.env()`.
 - System files (`/etc/modprobe.d`, `/etc/udev/rules.d`, systemd drop-ins) are installed by scripts with `sudo` in a visible terminal. `~/StartFS`-style FUSE checkouts cannot be read by root, so scripts stage files through `/tmp` (see `install_file` in `scripts/lib.sh`).
 - Back up before editing Hyprland config; validate with `hyprctl reload` and `hyprctl configerrors` (`Hyprland --verify-config` can crash even on a valid config).
-- Never install a rebuilt Aquamarine that does not carry the fix; the patch script verifies the built library before installing.
+- Do not rebuild or replace system libraries (Aquamarine, Hyprland): the plugin installs the DisplayLink driver and settings only. Anything the stock Arch packages lack is reported to the user, not patched.
 - Update `docs/displaylink.md` and the README in the same change as any behavior change.
 - Comments explain non-obvious constraints, not the author's machine.

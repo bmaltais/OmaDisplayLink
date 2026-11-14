@@ -13,12 +13,7 @@ cd OmaDisplayLink
 ./scripts/displaylink-configure.sh --apply-monitors
 ```
 
-**NVIDIA only** (skip on AMD and Intel):
-
-```bash
-./scripts/displaylink-aquamarine-patch.sh                # build + install the patched Aquamarine
-./scripts/displaylink-aquamarine-patch.sh --install-hook # keep it patched across `omarchy update`
-```
+**NVIDIA only:** Aquamarine must be 0.16.0 or newer. Check with `./scripts/displaylink-gpu.sh --stale` (exit 0 means too old: run `omarchy update`; if `./scripts/displaylink-gpu.sh --mirror-behind` also exits 0, the synced package database has no 0.16.0 yet, so try again later).
 
 Then **log out and back in with the dock attached** (or reboot), and plug it into a USB 3 / SuperSpeed port when you can. Take a snapshot first if you want an easy way back: `omarchy snapshot create`.
 
@@ -28,7 +23,7 @@ Then **log out and back in with the dock attached** (or reboot), and plug it int
 
 ```bash
 bin/omadisplaylink status     # idle / ok / attention / pending / updating / unconfigured, with a reason
-bin/omadisplaylink setup      # install + configure (+ NVIDIA patch and hook), step by step
+bin/omadisplaylink setup      # install + configure, step by step
 bin/omadisplaylink reinstall  # rebuild the evdi module and restart the service
 bin/omadisplaylink uninstall  # remove DisplayLink and everything setup added
 bin/omadisplaylink repair     # fix what status says is wrong (asks first)
@@ -40,10 +35,8 @@ bin/omadisplaylink doctor     # print that report
 
 ```bash
 ./scripts/displaylink-rebuild.sh                     # rebuild the evdi module for the new kernel
-./scripts/displaylink-aquamarine-patch.sh --status   # NVIDIA: prints "patched" or "stock"
+./scripts/displaylink-gpu.sh --stale; echo $?        # NVIDIA: 0 means Aquamarine is older than 0.16.0
 ```
-
-The update hook (`--install-hook`) re-applies the NVIDIA fix on its own after `omarchy update`.
 
 ## Undo
 

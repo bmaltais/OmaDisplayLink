@@ -26,7 +26,7 @@ DisplayLink docks are not ordinary USB-C or DisplayPort docks. They send video o
 
 - **A bar icon and a card** that say whether the dock is working and offer the one thing to do next: set up, log out to finish, repair, reinstall or uninstall.
 - **Guided setup** in a visible terminal: numbered steps, a plain-language line for each, and a question before anything changes.
-- **On NVIDIA**, a patched Aquamarine (Hyprland's backend library) with the CPU-copy fallback from [hyprwm/aquamarine#279](https://github.com/hyprwm/aquamarine/pull/279), because stock Aquamarine cannot drive evdi outputs on NVIDIA. An update hook re-applies it after `omarchy update`. The build uses Arch's packaging source only if its release tag is PGP-signed by a key in `archlinux-keyring`.
+- **On NVIDIA**, nothing extra: Aquamarine 0.16.0 and newer (Hyprland's backend library) carries the CPU-copy fallback from [hyprwm/aquamarine#279](https://github.com/hyprwm/aquamarine/pull/279) that evdi outputs need. On an older Aquamarine the card offers **Update Omarchy** (or says to try later while the Arch mirror has no 0.16.0 yet).
 - A **full undo**, a **diagnostic report** you can paste into an issue, and a **benchmark** of what the DisplayLink path costs.
 
 Everything is a plain shell script you can read, and every change has a documented undo.
@@ -67,19 +67,17 @@ Where a step needs administrator rights, the terminal asks for your password.
 
 Each step has a title, a line saying what it does, and a check mark when it is done. If a step fails it stops, says which one, and tells you how to ask for help.
 
-![All seven steps checked off, ending with Log out now?](docs/images/04-steps.png)
+![All six steps checked off, ending with Log out now?](docs/images/04-steps.png)
 
 | Step | What it does | Time |
 |---|---|---|
 | 1. Check this machine | Looks at your GPU, dock and kernel headers. Changes nothing | seconds |
 | 2. Snapshot | The optional system snapshot | seconds |
-| 3. Check build tools and helpers | Installs anything missing that the next steps need (on stock Omarchy usually `cmake`, `hyprwayland-scanner`, `usbutils`) | seconds |
+| 3. Check build tools and helpers | Installs anything missing that the next steps need (on stock Omarchy usually just `usbutils`) | seconds |
 | 4. Install the driver | Builds `evdi-dkms` (a kernel module) and installs `displaylink` from the AUR, then enables the service | a minute or two |
 | 5. Configure Hyprland and the system | Stable GPU names, early loading of evdi, the Hyprland environment block, monitor entries for the dock | seconds |
-| 6. Build the NVIDIA fix | **NVIDIA only.** Builds a patched Aquamarine and installs the update hook that keeps it patched | a few minutes |
-| 7. Finish | Marks setup as waiting for a login | seconds |
+| 6. Finish | Marks setup as waiting for a login | seconds |
 
-On AMD or Intel there is no step 6, so setup has six steps.
 
 ### 5. Log out and back in
 
@@ -101,7 +99,7 @@ The icon tells you the state without opening anything:
 
 ![The five icon states: not installed, no dock, working, needs attention, log out to finish](docs/images/icon-states.png)
 
-If it turns **orange or red**, open the card: it says in a sentence what is wrong and offers the fix when there is one (for example **Repair the NVIDIA fix** after an update, or **Reinstall** after a kernel update). **Copy report** puts a sanitized report on your clipboard to paste into a [GitHub issue](https://github.com/bmaltais/OmaDisplayLink/issues). If a screen shows "no signal" while the card says it is active, check the monitor's input source and cable first.
+If it turns **orange or red**, open the card: it says in a sentence what is wrong and offers the fix when there is one (for example **Update Omarchy** when Aquamarine is too old for NVIDIA, or **Reinstall** after a kernel update). **Copy report** puts a sanitized report on your clipboard to paste into a [GitHub issue](https://github.com/bmaltais/OmaDisplayLink/issues). If a screen shows "no signal" while the card says it is active, check the monitor's input source and cable first.
 
 ### Later: reinstall and uninstall
 
@@ -117,7 +115,7 @@ Not using the plugin, or want to script it? The same scripts, step by step, with
 |---|---|
 | Dock | Plugable UD-3900PDZ (triple HDMI, two DisplayLink heads) |
 | GPU | NVIDIA RTX 3090 (nvidia-open) |
-| Software | Omarchy, Hyprland 0.56.2, Aquamarine 0.15.1, evdi 1.15.1, `displaylink` 6.4 |
+| Software | Omarchy, Hyprland 0.56.2, Aquamarine 0.15.1 with the patch this repo then carried (stock 0.16.0 since), evdi 1.15.1, `displaylink` 6.4 |
 | Link | USB 2 (480M) |
 | Result | Two dock screens plus a native screen, replug and mode changes work |
 
@@ -134,8 +132,8 @@ Search-engine-friendly list of what people actually see:
 - `drm: drmPrimeFDToHandle failed`, `Buffer failed to import to KMS`
 - DisplayLink works on Windows but not on Omarchy / Arch Linux / Wayland
 - evdi on **NVIDIA with Wayland** produces no output (works on X11 or on AMD/Intel)
-- Screens vanish after `omarchy update` (a new Aquamarine dropped the patch): the update hook handles this
-- `AQ_NO_MODIFIERS=1` "fixes" the dock but greys out your main monitors (not needed here; the patch is the real fix)
+- Dock screens dead on NVIDIA after an `omarchy update`: check the Aquamarine version is 0.16.0 or newer (`pacman -Q aquamarine`)
+- `AQ_NO_MODIFIERS=1` "fixes" the dock but greys out your main monitors (not needed here; Aquamarine 0.16.0 is the real fix)
 
 Also check your monitor's input source before debugging further: a healthy dock output can look like "no signal" if the monitor is set to another input.
 
@@ -143,12 +141,11 @@ Also check your monitor's input source before debugging further: a healthy dock 
 
 1. **evdi** creates virtual DRM cards that the DisplayLink service feeds with frames over USB.
 2. **udev rules** give those cards and your real GPU stable names so `AQ_DRM_DEVICES` never points at the wrong device.
-3. **Hyprland** (through Aquamarine) renders on the real GPU and hands finished frames to evdi. On AMD and Intel that import works. On NVIDIA the driver refuses to share its buffers with evdi, so the patched Aquamarine reads the frame back and copies it into a plain buffer instead. That costs CPU, which is why heavy motion is the expensive case.
+3. **Hyprland** (through Aquamarine) renders on the real GPU and hands finished frames to evdi. On AMD and Intel that import works. On NVIDIA the driver refuses to share its buffers with evdi, so Aquamarine (0.16.0 and newer) reads the frame back and copies it into a plain buffer instead. That costs CPU, which is why heavy motion is the expensive case.
 
 ## Update safety
 
-- `displaylink-aquamarine-patch.sh --status` prints `patched` or `stock`.
-- The hook runs after every `omarchy update`: it does nothing unless Hyprland renders on NVIDIA and the library lost the fix, then rebuilds, verifies the build really carries the fix, installs it, and notifies you. If the patch stops applying, you get a notification and the system package is left alone.
+- On NVIDIA, dock screens need Aquamarine 0.16.0 or newer. Arch ships it, so `omarchy update` is all it takes; `displaylink-gpu.sh --stale` says whether this machine is behind. Earlier releases carried their own patched Aquamarine and an update hook; the plugin removes that hook, and the next `omarchy update` replaces the patched library.
 - After a kernel update, if the dock stops working, the card says the evdi module is missing and offers **Reinstall** (command line: `./scripts/displaylink-rebuild.sh`).
 - Once upstream merges the fix and Arch ships it, remove the hook and use the stock package (steps in the guide).
 
@@ -161,7 +158,7 @@ Use **Uninstall** in the card's Maintenance row, or from a terminal:
 ./scripts/displaylink-uninstall.sh            # step by step, after a confirmation
 ```
 
-It stops the service, removes the setup files, the Hyprland environment block and the update hook, puts the stock Aquamarine back if the patched one is installed, and removes the packages. Your `monitors.lua` is left alone. The manual steps are in [docs/displaylink.md](docs/displaylink.md#undo).
+It stops the service, removes the setup files and the Hyprland environment block, removes the old update hook if an earlier release installed it, and removes the packages. Your `monitors.lua` is left alone. The manual steps are in [docs/displaylink.md](docs/displaylink.md#undo).
 
 ## Contributing
 
@@ -177,4 +174,4 @@ DisplayLink Omarchy, DisplayLink Hyprland, DisplayLink Arch Linux, DisplayLink W
 
 ## License
 
-[MIT](LICENSE). The bundled Aquamarine patch is a derivative of Aquamarine (BSD-3-Clause); the `displaylink` driver is proprietary and installed from the AUR under its own license.
+[MIT](LICENSE). The `displaylink` driver is proprietary and installed from the AUR under its own license.

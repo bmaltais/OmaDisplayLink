@@ -68,9 +68,9 @@ emit() {
   lspci -d ::03xx -nnk 2>/dev/null || true
 
   echo
-  echo "=== aquamarine (evdi on NVIDIA needs the patched build) ==="
+  echo "=== aquamarine (evdi on NVIDIA needs 0.16.0 or newer) ==="
   pacman -Q aquamarine 2>/dev/null || true
-  "$SCRIPT_DIR/displaylink-aquamarine-patch.sh" --status 2>/dev/null || true
+  if "$SCRIPT_DIR/displaylink-gpu.sh" --stale; then echo "too old for NVIDIA: run omarchy update"; fi
   echo
   echo "=== hyprctl monitors ==="
   if command -v hyprctl >/dev/null && [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" || -d "${XDG_RUNTIME_DIR:-}/hypr" ]]; then
