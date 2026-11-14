@@ -147,7 +147,7 @@ ERR from aquamarine ]: drm: Buffer failed to import to KMS
 Things to know:
 
 - **Older Aquamarine.** `./scripts/displaylink-gpu.sh --stale` exits 0 when DisplayLink is installed, Hyprland renders on NVIDIA and Aquamarine is older than 0.16.0. The plugin's card then says to run `omarchy update`.
-- **Earlier releases patched Aquamarine themselves** (`<ver>-1.N` rebuilt locally, plus an update hook). The plugin deletes that hook on its next status check, and `--stale` accepts a build that carries the fix. The patched library is replaced by Arch's package at the next `omarchy update`.
+- **Earlier releases patched Aquamarine themselves** (`<ver>-1.N` rebuilt locally, plus an update hook). The plugin deletes that hook on its next status check (and `scripts/displaylink-aquamarine-patch.sh` is a stub that deletes it too, in case the old hook fires first), and `--stale` accepts a build that carries the fix. The patched library is replaced by Arch's package at the next `omarchy update`.
 - **Do not `IgnorePkg` Aquamarine.** Hyprland and Aquamarine are versioned together; holding it back breaks Hyprland updates.
 - **It costs CPU.** Every frame for the evdi screen is read back and copied. A tester measured about 16–20% of one core while content changes, on a small panel; a 1080p screen costs more. Measure it on your hardware.
 - `Cannot commit when a page-flip is awaiting` lines in the Hyprland log are common and have not caused visible problems.
