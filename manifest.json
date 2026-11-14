@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.bmaltais.omadisplaylink",
   "name": "OmaDisplayLink",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": "Bernard Maltais",
   "license": "MIT",
   "description": "DisplayLink USB docks on Omarchy: guided setup and a bar icon that says whether the dock screens are working.",
