@@ -10,17 +10,26 @@ for cand in /dev/dri/nvidia-gpu /dev/dri/amd-gpu /dev/dri/intel-gpu /dev/dri/gpu
   fi
 done
 
-# Fallback: first PCI DRM card whose driver is not evdi.
+# Fallback: first non-evdi DRM card that drives a display. On Apple Silicon (Asahi) the GPU is
+# its own render-only card with no connectors and the display controller is a separate card; picking
+# the first card would leave the built-in panel with no device to scan out on. If no card has a
+# connector yet (nothing probed at login), take the first non-evdi card.
 if [ -z "$gpu" ]; then
-  for card in /dev/dri/card[0-9]*; do
-    [ -e "$card" ] || continue
-    name=$(basename "$card")
-    driver_link="/sys/class/drm/${name}/device/driver"
-    [ -e "$driver_link" ] || continue
-    driver=$(basename "$(readlink -f "$driver_link")")
-    [ "$driver" = evdi ] && continue
-    gpu=$card
-    break
+  for need_connector in 1 0; do
+    for card in /dev/dri/card[0-9]*; do
+      [ -e "$card" ] || continue
+      name=$(basename "$card")
+      driver_link="/sys/class/drm/${name}/device/driver"
+      [ -e "$driver_link" ] || continue
+      driver=$(basename "$(readlink -f "$driver_link")")
+      [ "$driver" = evdi ] && continue
+      if [ "$need_connector" = 1 ]; then
+        ls -d "/sys/class/drm/${name}-"* >/dev/null 2>&1 || continue
+      fi
+      gpu=$card
+      break
+    done
+    [ -n "$gpu" ] && break
   done
 fi
 

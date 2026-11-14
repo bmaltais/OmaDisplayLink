@@ -23,6 +23,8 @@ for arg in "$@"; do
   esac
 done
 ((build_only)) || pkgs+=("${HELPERS[@]}")
+# A clang-built kernel (Asahi on Apple Silicon) makes dkms compile evdi with clang and lld.
+grep -q clang /proc/version 2>/dev/null && pkgs+=(clang lld)
 
 # pacman -T prints the ones that are not satisfied.
 mapfile -t missing < <(pacman -T "${pkgs[@]}" || true)
