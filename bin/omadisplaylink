@@ -90,7 +90,7 @@ relogin_pending() {
 # Prints "<kind>|<action>|<message>". Kinds: unconfigured (driver not installed), pending (setup done, waiting
 # for a login), idle (no dock plugged in), ok (dock screens active), attention (something is wrong),
 # updating (a problem seen while pacman or dkms is running, so probably not a real one).
-# The action is what the card should offer: setup, relogin, reinstall, service, patch, or nothing.
+# The action is what the card should offer: setup, relogin, reinstall, service, update, or nothing.
 compute_status() {
   if demo; then
     # Line 1 of the demo file is the state; line 2, if any, the action the card should offer.
@@ -105,6 +105,9 @@ compute_status() {
     esac
     return
   fi
+  # Earlier releases installed an update hook that called the Aquamarine patch script. The script is gone,
+  # so the hook would only notify "script is missing" after every omarchy update.
+  rm -f "$HOME/.config/omarchy/hooks/post-update.d/displaylink-aquamarine.hook"
   if ! pacman -Q evdi-dkms displaylink >/dev/null 2>&1; then
     if dock_attached; then
       echo "unconfigured|setup|A DisplayLink dock is plugged in, but the driver is not installed."
@@ -130,9 +133,8 @@ compute_status() {
     echo "attention|service|The DisplayLink service is not running, so the dock shows nothing."
     return
   fi
-  if "$SCRIPTS/displaylink-aquamarine-patch.sh" --needed >/dev/null 2>&1 &&
-    ! "$SCRIPTS/displaylink-aquamarine-patch.sh" --status >/dev/null 2>&1; then
-    echo "attention|patch|An update replaced the NVIDIA fix in Aquamarine, so the dock screens have no picture."
+  if "$SCRIPTS/displaylink-gpu.sh" --stale >/dev/null 2>&1; then
+    echo "attention|update|Aquamarine $("$SCRIPTS/displaylink-gpu.sh" --version) cannot drive dock screens on NVIDIA; 0.16.0 or newer can. Run omarchy update."
     return
   fi
   local connected enabled
@@ -207,9 +209,17 @@ need_gum() { ((PREVIEW)) || command -v gum >/dev/null 2>&1 || fail "gum is requi
 
 # A few lines about this machine, so the first step shows what setup is looking at.
 check_machine() {
-  local driver headers
-  driver="$("$SCRIPTS/displaylink-aquamarine-patch.sh" --nvidia >/dev/null 2>&1 && echo "NVIDIA" || echo "AMD or Intel")"
+  local driver headers aq
+  driver="$("$SCRIPTS/displaylink-gpu.sh" --nvidia >/dev/null 2>&1 && echo "NVIDIA" || echo "AMD or Intel")"
   step_ok "Hyprland renders on: $driver"
+  if [[ $driver == NVIDIA ]]; then
+    aq="$("$SCRIPTS/displaylink-gpu.sh" --version || true)"
+    if [[ -n $aq ]] && (($(vercmp "$aq" 0.16.0) < 0)); then
+      step_skip "Aquamarine $aq is too old to drive dock screens on NVIDIA; run omarchy update (0.16.0 or newer)"
+    else
+      step_ok "Aquamarine ${aq:-?} can drive dock screens on NVIDIA"
+    fi
+  fi
   if dock_attached; then step_ok "A DisplayLink dock is plugged in"; else step_skip "No dock is plugged in yet (setup works without one)"; fi
   headers="$(pacman -Q 2>/dev/null | grep -c 'headers' || true)"
   if ((headers > 0)); then step_ok "Kernel headers are installed"; else step_skip "Kernel headers will be installed (the driver needs them)"; fi
@@ -218,19 +228,16 @@ check_machine() {
 cmd_setup() {
   preview_flag "${1:-}"
   need_gum
-  local nvidia=0
-  "$SCRIPTS/displaylink-aquamarine-patch.sh" --nvidia >/dev/null 2>&1 && nvidia=1
   echo "OmaDisplayLink setup"
   echo
   echo "This will:"
   echo "  - install the DisplayLink driver packages (evdi-dkms and displaylink, from the AUR)"
   echo "  - write module, udev and Hyprland environment settings, and add your dock screens to monitors.lua"
-  ((nvidia)) && echo "  - build and install a patched Aquamarine, because Hyprland renders on NVIDIA, and keep it across updates"
   echo "  - ask you to log out and back in at the end"
   echo "Your password is asked for where a step needs it, and you can stop at any prompt."
   echo
   ask "Go ahead?" || { echo "Cancelled. Nothing was changed."; exit 130; }
-  steps_begin $((nvidia ? 7 : 6))
+  steps_begin 6
 
   step "Check this machine" "A look at what setup will be working with."
   check_machine
@@ -244,7 +251,7 @@ cmd_setup() {
     step_skip "skipped"
   fi
 
-  step "Check build tools and helpers" "Installs anything missing that the next steps need (compilers, git, python, jq, gum, clipboard tool). Usually nothing."
+  step "Check build tools and helpers" "Installs anything missing that the next steps need (build tools, git, python, jq, gum, clipboard tool). Usually nothing."
   if ((PREVIEW)); then
     "$SCRIPTS/displaylink-prereqs.sh" --check | sed 's/^/  /' || true
   else
@@ -256,12 +263,6 @@ cmd_setup() {
 
   step "Configure Hyprland and the system" "Stable GPU names, early loading of evdi, the Hyprland environment, and monitor entries for the dock."
   run_step "write the settings" "$SCRIPTS/displaylink-configure.sh" --apply-monitors || stop_flow
-
-  if ((nvidia)); then
-    step "Build the NVIDIA fix" "Stock Aquamarine cannot drive DisplayLink on NVIDIA, so this builds a patched one (a few minutes) and keeps it across updates."
-    run_step "build and install the patched Aquamarine" "$SCRIPTS/displaylink-aquamarine-patch.sh" || stop_flow
-    run_step "install the update hook" "$SCRIPTS/displaylink-aquamarine-patch.sh" --install-hook || stop_flow
-  fi
 
   step "Finish" "If the dock screens are not active yet, you log out and back in with it attached; if they already are, nothing more is needed."
   if ((PREVIEW)); then
@@ -302,18 +303,10 @@ cmd_reinstall() {
   echo "Use it after a kernel update, or if the dock stopped working. It asks for your password."
   echo
   ask "Go ahead?" || { echo "Cancelled. Nothing was changed."; exit 130; }
-  local fix=0
-  "$SCRIPTS/displaylink-aquamarine-patch.sh" --needed >/dev/null 2>&1 &&
-    ! "$SCRIPTS/displaylink-aquamarine-patch.sh" --status >/dev/null 2>&1 && fix=1
-  steps_begin $((1 + fix))
+  steps_begin 1
 
   step "Rebuild the driver" "Rebuilds evdi with dkms for this kernel and restarts displaylink.service."
   run_step "rebuild evdi and restart the service" "$SCRIPTS/displaylink-rebuild.sh" || stop_flow
-
-  if ((fix)); then
-    step "Rebuild the NVIDIA fix" "An update replaced the patched Aquamarine, so this builds it again (a few minutes)."
-    run_step "build and install the patched Aquamarine" "$SCRIPTS/displaylink-aquamarine-patch.sh" || stop_flow
-  fi
   echo
   if ((PREVIEW)); then
     echo "Preview only: nothing was changed."
@@ -339,13 +332,16 @@ cmd_repair() {
   echo "$message"
   echo
   case "$action" in
-    patch)
-      echo "This rebuilds Arch's Aquamarine with the DisplayLink fix and installs it. It takes a few minutes"
-      echo "and asks for your password. Log out and back in afterwards."
+    update)
+      echo "This runs omarchy update, which brings Aquamarine to 0.16.0 or newer. It can take a while and"
+      echo "asks for your password. Log out and back in afterwards."
       echo
       demo && { echo "Demo: nothing is changed."; return 0; }
-      gum confirm "Rebuild and install the patched Aquamarine?" || exit 130
-      "$SCRIPTS/displaylink-aquamarine-patch.sh"
+      gum confirm "Run omarchy update now?" || exit 130
+      omarchy update || exit 1
+      # The running Hyprland still has the old library loaded, so the screens need a new login.
+      mkdir -p "$STATE_DIR"
+      : >"$PENDING_FILE"
       ;;
     service)
       echo "This restarts displaylink.service (the DisplayLink driver process). It asks for your password."

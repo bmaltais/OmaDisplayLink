@@ -4,7 +4,7 @@ Use a DisplayLink USB hub or dock as extra monitors on Omarchy. A DisplayLink de
 
 Prefer native GPU ports when you can. Use this project when the extra screens only exist on a DisplayLink hub.
 
-**Status:** works on NVIDIA with a patched Aquamarine (see [NVIDIA + evdi](#nvidia--evdi)); verified with a Plugable UD-3900PDZ on an RTX 3090, Hyprland 0.56, Aquamarine 0.15.1, evdi 1.15.1, `displaylink` 6.4. AMD and Intel are expected to work with stock Aquamarine (no patch, no hook) but are untested here; see [Non-NVIDIA machines](#non-nvidia-machines).
+**Status:** works on NVIDIA with stock Aquamarine 0.16.0 or newer (see [NVIDIA + evdi](#nvidia--evdi)); verified with a Plugable UD-3900PDZ on an RTX 3090, Hyprland 0.56, evdi 1.15.1, `displaylink` 6.4. Earlier releases worked on Aquamarine 0.15.1 by carrying a patch. AMD and Intel are expected to work but are untested here; see [Non-NVIDIA machines](#non-nvidia-machines).
 
 ## Assumptions
 
@@ -61,7 +61,7 @@ To paste detect output into a public issue, run `./scripts/displaylink-detect.sh
 ./scripts/displaylink-install.sh
 ```
 
-Before it, `./scripts/displaylink-prereqs.sh` installs anything missing that the scripts lean on (`base-devel`, `git`, `curl`, `python`, `libarchive`, `cmake`, `hyprwayland-scanner`, `dkms`, `usbutils`, `jq`, `gum`, `wl-clipboard`; on stock Omarchy that is usually just `cmake`, `hyprwayland-scanner` and `usbutils`). `--check` lists what is missing without installing, and the plugin's setup runs it as a step.
+Before it, `./scripts/displaylink-prereqs.sh` installs anything missing that the scripts lean on (`base-devel`, `git`, `python`, `dkms`, `usbutils`, `jq`, `gum`, `wl-clipboard`, plus `clang` and `lld` when the running kernel was built with clang, as on Apple Silicon; on stock Omarchy that is usually just `usbutils`). `--check` lists what is missing without installing, and the plugin's setup runs it as a step.
 
 What the install script does:
 
@@ -82,7 +82,7 @@ Xorg snippets from the Arch wiki are **not** required on Wayland. Hyprland talks
 Options:
 
 - `--apply-monitors` appends `hl.monitor` lines for evdi outputs that `monitors.lua` does not mention yet, placed to the right of the existing layout at `1920x1080@60`, scale 1. Existing lines are never rewritten, so your scales, rotations, comments and `disabled = true` lines stay. It backs the file up first, runs `hyprctl reload`, and **restores the backup and exits 1** if `hyprctl configerrors` reports anything.
-- `--no-modifiers` also exports `AQ_NO_MODIFIERS=1`. Off by default and not needed with the patched Aquamarine; kept only for experiments.
+- `--no-modifiers` also exports `AQ_NO_MODIFIERS=1`. Off by default and not needed with Aquamarine 0.16.0; kept only for experiments.
 
 Without `--apply-monitors`, the script still installs udev, modprobe, systemd and the UWSM env block, and prints the lines it would add.
 
@@ -129,7 +129,7 @@ The configure script:
 
 ### Non-NVIDIA machines
 
-On AMD and Intel, stock Aquamarine can hand the primary GPU's buffers to evdi directly (per the description of hyprwm/aquamarine#279), so skip `displaylink-aquamarine-patch.sh` and its hook. Detect, install and configure are the same; the env block picks the AMD or Intel card and only sets the NVIDIA workarounds when the GPU Hyprland renders on is NVIDIA, which also holds on hybrid laptops. This path has not been run on real hardware: run `scripts/displaylink-detect.sh` first, and report what you see.
+On AMD and Intel, Aquamarine can hand the primary GPU's buffers to evdi directly (per the description of hyprwm/aquamarine#279). Detect, install and configure are the same; the env block picks the AMD or Intel card and only sets the NVIDIA workarounds when the GPU Hyprland renders on is NVIDIA, which also holds on hybrid laptops. This path has not been run on real hardware: run `scripts/displaylink-detect.sh` first, and report what you see.
 
 ### NVIDIA + evdi
 
@@ -142,30 +142,15 @@ ERR from aquamarine ]: drm: Buffer failed to import to KMS
 
 **Cause.** evdi has no render device, and NVIDIA's dmabuf exporter refuses `dma_buf_attach` from foreign drivers, so the primary GPU's buffer cannot be imported into evdi. `AQ_NO_MODIFIERS=1` does not fix this and can grey out the native outputs, so it is **not** set by default.
 
-**Fix.** [hyprwm/aquamarine#279](https://github.com/hyprwm/aquamarine/pull/279) adds a last-resort CPU-copy path (the same approach KWin and Mutter use): when the direct import fails on evdi, the frame is read back and written into a dumb buffer. It is not merged upstream yet. This repo carries it, adapted to Aquamarine 0.15.1, as [`config/displaylink/aquamarine-evdi-nvidia.patch`](../config/displaylink/aquamarine-evdi-nvidia.patch) (three changes on top of the PR: write the blit fence into the commit snapshot, the `OPTIONS.length == 0` swapchain guard, and no queued/timed commits for evdi).
-
-```bash
-./scripts/displaylink-aquamarine-patch.sh
-```
-
-It builds Arch's `aquamarine` package with the patch (version `<ver>-1.1`, so it sorts above the stock `<ver>-1`) and installs it with `pacman -U`. `--build-only` builds without installing. Log out and back in afterwards. A working session logs `direct KMS import of primary buffer failed … switching to dumb-buffer CPU copy`.
+**Fix.** [hyprwm/aquamarine#279](https://github.com/hyprwm/aquamarine/pull/279) adds a last-resort CPU-copy path (the same approach KWin and Mutter use): when the direct import fails on evdi, the frame is read back and written into a dumb buffer. It was merged on 2026-10-30 and ships in **Aquamarine 0.16.0**, which Arch carries. Nothing needs patching or building: run `omarchy update`, then log out and back in. A working session logs `EGL (blit): destination not renderable, using CPU copy`.
 
 Things to know:
 
-- **It does not survive an Aquamarine update by itself.** A newer package from Arch/Omarchy replaces it and the heads go back to no signal. Install the update hook once:
-
-  ```bash
-  ./scripts/displaylink-aquamarine-patch.sh --install-hook
-  ```
-
-  After every `omarchy update`, the hook runs `--ensure`. That does nothing unless `displaylink` is installed, Hyprland renders on an NVIDIA GPU (the first `AQ_DRM_DEVICES` entry of the running compositor; a hybrid laptop that renders on the integrated GPU is skipped) and the installed `libaquamarine` lacks the fix (`--status` prints `patched` or `stock`). If it lacks the fix, it rebuilds from Arch's packaging repository at the tag matching the installed version, but only if that tag carries a good PGP signature from a key in `archlinux-keyring` (the keys pacman itself trusts; otherwise nothing is built), checks that the built package really carries the fix, installs it, and sends a notification asking you to log out. If the tag's signature cannot be verified, the patch no longer applies, or the build fails, you get a notification instead, and the system package is left alone (screens stay at no signal until the patch is updated). Use `--remove-hook` to uninstall the hook. The hook file is generated per machine with this repo's path; it is not committed.
-- **When upstream merges #279**, the stock library will carry the fix and `--ensure` becomes a no-op on its own. If the merged code logs a different message than the marker the script greps for, `--ensure` will try to rebuild, find the patch no longer applies, and say upstream's state in the notification. At that point run `--remove-hook` and stop using this patch.
-- **Do not `IgnorePkg` it.** Hyprland and Aquamarine are versioned together; holding Aquamarine back breaks Hyprland updates.
+- **Older Aquamarine.** `./scripts/displaylink-gpu.sh --stale` exits 0 when DisplayLink is installed, Hyprland renders on NVIDIA and Aquamarine is older than 0.16.0. The plugin's card then says to run `omarchy update`.
+- **Earlier releases patched Aquamarine themselves** (`<ver>-1.N` rebuilt locally, plus an update hook). The plugin deletes that hook on its next status check, and `--stale` accepts a build that carries the fix. The patched library is replaced by Arch's package at the next `omarchy update`.
+- **Do not `IgnorePkg` Aquamarine.** Hyprland and Aquamarine are versioned together; holding it back breaks Hyprland updates.
 - **It costs CPU.** Every frame for the evdi screen is read back and copied. A tester measured about 16–20% of one core while content changes, on a small panel; a 1080p screen costs more. Measure it on your hardware.
 - `Cannot commit when a page-flip is awaiting` lines in the Hyprland log are common and have not caused visible problems.
-- **Undo:** `sudo pacman -S aquamarine` reinstalls the stock package.
-
-AMD and Intel primaries do not need the patch.
 
 Do **not** put PCI `by-path` names in `AQ_DRM_DEVICES` (they contain colons, and Aquamarine splits the variable on `:`). Use the udev symlinks instead.
 
@@ -224,7 +209,7 @@ Before running configure for real, on any machine:
 
 ## Measure the cost
 
-On NVIDIA the patched Aquamarine copies every DisplayLink frame through the CPU, so it is worth measuring before and after any change:
+On NVIDIA Aquamarine copies every DisplayLink frame through the CPU, so it is worth measuring before and after any change:
 
 ```bash
 scripts/displaylink-benchmark.sh --seconds 30 --label "idle"
@@ -237,8 +222,8 @@ Baseline, idle desktop (3 monitors, 2 through the dock, USB 2 at 480M, RTX 3090,
 
 | | Hyprland | DisplayLinkManager | Hyprland log |
 |---|---|---|---|
-| First patch | about 99% of one core | about 136% | about 650 lines/s (60 KiB/s) |
-| Tuned patch | about 73-82% | about 56-87% | none |
+| First patch (0.15.1, carried here before 0.16.0) | about 99% of one core | about 136% | about 650 lines/s (60 KiB/s) |
+| Tuned patch (same) | about 73-82% | about 56-87% | none |
 
 Idle is unchanged (about 1.5% and 0.2%). The tuned patch skips the failed GL import of the evdi buffer after the first frame, stops re-checking for a secondary renderer and logging it every frame, reuses the read-back buffer and swaps red and blue a word at a time. Run-to-run variation is large, so compare several runs.
 
@@ -250,7 +235,7 @@ evdi is DKMS. A new kernel often needs a rebuild:
 ./scripts/displaylink-rebuild.sh
 ```
 
-That runs `dkms autoinstall` and restarts `displaylink.service`. On NVIDIA also rerun `./scripts/displaylink-aquamarine-patch.sh` whenever `aquamarine` was updated. If the module fails to build, wait for a newer `evdi-dkms` or switch to `evdi-dkms-git` if it tracks a newer tree.
+That runs `dkms autoinstall` and restarts `displaylink.service`. If the module fails to build, wait for a newer `evdi-dkms` or switch to `evdi-dkms-git` if it tracks a newer tree.
 
 ## Undo
 
@@ -279,7 +264,7 @@ Packages (optional):
 
 ```bash
 omarchy pkg drop displaylink evdi-dkms
-sudo pacman -S aquamarine   # only if the patched build was installed
+omarchy update   # if an earlier release installed a patched Aquamarine, this replaces it with the stock one
 ```
 
 ## Why the same hub can work on Windows and fail on Omarchy

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Undo displaylink-install.sh, displaylink-configure.sh and displaylink-aquamarine-patch.sh.
+# Undo displaylink-install.sh and displaylink-configure.sh.
 #
 # Usage: displaylink-uninstall.sh [--preview]
 #   --preview   say what each step would do and change nothing
@@ -16,7 +16,6 @@ source "$SCRIPT_DIR/steps.sh"
 ETC="${OMADL_ETC:-/etc}"
 ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/uwsm/env-hyprland"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/OmaDisplayLink"
-PATCH="$SCRIPT_DIR/displaylink-aquamarine-patch.sh"
 
 case "${1:-}" in
   --preview) PREVIEW=1 ;;
@@ -42,7 +41,10 @@ path.write_text(text)
 PY
 }
 
-patched_aquamarine() { [[ $("$PATCH" --status 2>/dev/null || true) == patched ]]; }
+# Earlier releases installed an update hook; the plugin's status check also removes it.
+HOOK="$HOME/.config/omarchy/hooks/post-update.d/displaylink-aquamarine.hook"
+HAS_HOOK=0
+[[ -e $HOOK ]] && HAS_HOOK=1
 
 cat <<'TXT'
 OmaDisplayLink uninstall
@@ -51,8 +53,7 @@ This will, in order:
   - stop the DisplayLink service and remove its systemd drop-in
   - remove the evdi module settings and the stable GPU names (udev rule)
   - remove the OmaDisplayLink block from your Hyprland environment file (a backup is kept)
-  - remove the update hook
-  - put Arch's stock Aquamarine back, if the patched one is installed
+  - remove the old update hook, if an earlier release installed it
   - remove the displaylink and evdi-dkms packages
 
 Your monitor layout (monitors.lua) is left alone. DisplayLink screens go dark as soon as the
@@ -65,8 +66,7 @@ if ! ask "Remove DisplayLink from this machine?"; then
 fi
 ((PREVIEW)) || need_sudo
 
-TOTAL=6
-patched_aquamarine && TOTAL=7
+TOTAL=$((5 + HAS_HOOK))
 steps_begin "$TOTAL"
 
 step "Snapshot" "A system snapshot lets you roll back if something goes wrong."
@@ -91,12 +91,9 @@ run_step "reload udev rules" sudo udevadm control --reload || stop_flow
 step "Hyprland environment" "Removes the OmaDisplayLink block from $ENV_FILE and keeps a backup."
 run_step "remove the block" remove_env_block || stop_flow
 
-step "Update hook" "Removes the hook that kept the NVIDIA fix across updates."
-run_step "remove the hook" "$PATCH" --remove-hook || stop_flow
-
-if patched_aquamarine; then
-  step "Stock Aquamarine" "Puts Arch's own Aquamarine back, replacing the patched build."
-  run_step "reinstall the stock package" sudo pacman -S --noconfirm aquamarine || stop_flow
+if ((HAS_HOOK)); then
+  step "Old update hook" "Removes the hook an earlier release installed."
+  run_step "remove the hook" rm -f "$HOOK" || stop_flow
 fi
 
 step "Remove the packages" "Removes displaylink and evdi-dkms (the evdi kernel module stays loaded until you reboot)."

@@ -20,7 +20,7 @@ BarWidget {
 
   property string kind: "unconfigured"
   property string message: "DisplayLink is not set up yet."
-  // What would help, or "": setup, relogin, reinstall, patch (rebuild the NVIDIA fix) or service (restart displaylink.service).
+  // What would help, or "": setup, relogin, reinstall, update (Aquamarine too old for NVIDIA) or service (restart displaylink.service).
   // Starts as setup: until the service has written the status file this is a first run, and setup is the one thing to do.
   property string action: "setup"
   property bool popupOpen: false
@@ -110,8 +110,8 @@ BarWidget {
       note: "Closes your session and returns to the login screen so the setup takes effect. Save your work first." }
     if (action === "reinstall") return { id: "reinstall", label: "Reinstall", icon: icons.reinstall,
       note: "The evdi kernel module is missing for this kernel. Rebuilds it and restarts the service; asks for your password." }
-    if (action === "patch") return { id: "repair", label: "Repair the NVIDIA fix", icon: icons.repair,
-      note: "An update replaced the patched Aquamarine. Rebuilds it in a terminal and asks for your password." }
+    if (action === "update") return { id: "repair", label: "Update Omarchy", icon: icons.repair,
+      note: "Aquamarine is too old to drive dock screens on NVIDIA. Runs omarchy update in a terminal and asks for your password." }
     if (action === "service") return { id: "repair", label: "Restart the DisplayLink service", icon: icons.repair,
       note: "Restarts displaylink.service in a terminal and asks for your password." }
     return null
