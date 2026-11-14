@@ -35,9 +35,9 @@ card() {
   magick "$work/r.png" \( +clone -background black -shadow 70x22+0+16 \) +swap -background none -layers merge +repage "$dest"
 }
 
-card "$shots/terminal-steps.png"        "$work/steps.png"  780x540+0+0    88 10
+card "$shots/terminal-steps.png"        "$work/steps.png"  780x460+0+0    88 10
 card "$shots/card-no-driver.png" "$work/c-not.png"  340x277+87+26 100 8
-card "$shots/card-attention.png"     "$work/c-attn.png" 340x312+87+26 100 8
+card "$shots/card-attention.png"     "$work/c-attn.png" 340x346+87+26 100 8
 card "$shots/card-working.png"       "$work/c-ok.png"   340x207+87+26 100 8
 card "$shots/card-log-out.png"       "$work/c-out.png"  340x312+87+26 100 8
 card "$shots/icon-states.png"        "$work/icons.png"  1000x112+0+0   66 8
@@ -62,7 +62,7 @@ magick -size 1600x900 radial-gradient:'#16213f-#080a14' \
   "$work/icons.png"  -geometry "$(at 72 792)" -composite \
   "$work/c-not.png"  -geometry "$(at 830 70)" -composite \
   "$work/c-ok.png"   -geometry "$(at 830 410)" -composite \
-  "$work/c-attn.png" -geometry "$(at 1210 150)" -composite \
+  "$work/c-attn.png" -geometry "$(at 1210 130)" -composite \
   "$work/c-out.png"  -geometry "$(at 1210 510)" -composite \
   "$out"
 echo "Wrote $out"

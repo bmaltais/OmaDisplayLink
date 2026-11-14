@@ -67,7 +67,7 @@ Where a step needs administrator rights, the terminal asks for your password.
 
 Each step has a title, a line saying what it does, and a check mark when it is done. If a step fails it stops, says which one, and tells you how to ask for help.
 
-![All seven steps checked off, ending with Log out now?](docs/images/04-steps.png)
+![All six steps checked off, ending with Log out now?](docs/images/04-steps.png)
 
 | Step | What it does | Time |
 |---|---|---|
