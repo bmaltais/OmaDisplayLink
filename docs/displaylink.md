@@ -123,8 +123,8 @@ Hyprland must render on the real GPU and scan out on evdi. If `AQ_DRM_DEVICES` i
 
 The configure script:
 
-- Writes udev rules so the discrete GPU is `/dev/dri/nvidia-gpu` (or `amd-gpu` / `intel-gpu`) and evdi cards are `/dev/dri/evdi0`, `/dev/dri/evdi1`. If no GPU can be detected it skips the GPU rule instead of guessing. With no PCI GPU (Apple Silicon), the env block picks the first non-evdi card that has a display connector, preferring one with a panel or DP/HDMI connector over a DSI-only card (the MacBook Touch Bar).
-- Installs the block from [`config/displaylink/env-hyprland.example`](../config/displaylink/env-hyprland.example). It picks the GPU **at login**: the udev symlink if present, else the first PCI card whose driver is not `evdi`. It lists `evdi0`/`evdi1` only if they exist, and leaves `AQ_DRM_DEVICES` unset if no GPU is found. A fixed list pointing at devices that are not there (hub unplugged, module not loaded) must never be what Hyprland starts with.
+- Writes udev rules so the discrete GPU is `/dev/dri/nvidia-gpu` (or `amd-gpu` / `intel-gpu`) and evdi cards are `/dev/dri/evdi0`, `/dev/dri/evdi1`. If no GPU can be detected it skips the GPU rule instead of guessing. With no PCI GPU (Apple Silicon) the env block leaves `AQ_DRM_DEVICES` unset and Aquamarine picks the devices; guessing a card broke the built-in panel on a MacBook, whose Touch Bar is its own DRM card.
+- Installs the block from [`config/displaylink/env-hyprland.example`](../config/displaylink/env-hyprland.example). It picks the GPU **at login**: the udev symlink if present. It lists `evdi0`/`evdi1` only if they exist, and leaves `AQ_DRM_DEVICES` unset if no GPU is found. A fixed list pointing at devices that are not there (hub unplugged, module not loaded) must never be what Hyprland starts with.
 - On NVIDIA also sets `AQ_FORCE_LINEAR_BLIT=0` and `AQ_MGPU_NO_EXPLICIT=1`.
 
 ### Non-NVIDIA machines
