@@ -119,12 +119,12 @@ Lid-closed + externals-only on a laptop is already an Omarchy feature (`Super + 
 
 ### Multi-GPU: `AQ_DRM_DEVICES`
 
-Hyprland must render on the real GPU and scan out on evdi. If `AQ_DRM_DEVICES` is unset, an evdi card can become primary after reboot (`/dev/dri/card0` is not stable).
+Hyprland must render on the real GPU and scan out on evdi. If `AQ_DRM_DEVICES` is unset on a machine with a PCI GPU, an evdi card can become primary after reboot (`/dev/dri/card0` is not stable). Machines with no PCI GPU (Apple Silicon) have no such card to pick, so the variable stays unset there.
 
 The configure script:
 
 - Writes udev rules so the discrete GPU is `/dev/dri/nvidia-gpu` (or `amd-gpu` / `intel-gpu`) and evdi cards are `/dev/dri/evdi0`, `/dev/dri/evdi1`. If no GPU can be detected it skips the GPU rule instead of guessing. With no PCI GPU (Apple Silicon) the env block leaves `AQ_DRM_DEVICES` unset and Aquamarine picks the devices; guessing a card broke the built-in panel on a MacBook, whose Touch Bar is its own DRM card.
-- Installs the block from [`config/displaylink/env-hyprland.example`](../config/displaylink/env-hyprland.example). It picks the GPU **at login**: the udev symlink if present. It lists `evdi0`/`evdi1` only if they exist, and leaves `AQ_DRM_DEVICES` unset if no GPU is found. A fixed list pointing at devices that are not there (hub unplugged, module not loaded) must never be what Hyprland starts with.
+- Installs the block from [`config/displaylink/env-hyprland.example`](../config/displaylink/env-hyprland.example). It picks the GPU **at login**: the udev symlink if present, else the first PCI card whose driver is not `evdi` (platform cards never count). It lists `evdi0`/`evdi1` only if they exist, and leaves `AQ_DRM_DEVICES` unset if no GPU is found. A fixed list pointing at devices that are not there (hub unplugged, module not loaded) must never be what Hyprland starts with.
 - On NVIDIA also sets `AQ_FORCE_LINEAR_BLIT=0` and `AQ_MGPU_NO_EXPLICIT=1`.
 
 ### Non-NVIDIA machines
@@ -181,7 +181,7 @@ If `hyprctl monitors` still only shows the internal / native panel:
 - Reboot **with the hub connected**
 - `sudo dmesg | grep -iE 'evdi|displaylink|17e9'`
 
-Without the udev symlinks (the configure step) `AQ_DRM_DEVICES` lists only the GPU and Aquamarine ignores evdi entirely, so run configure and start a new session. Some sessions only pick up evdi outputs when the compositor starts with the dock already attached. Hyprland/aquamarine evdi support is unofficial.
+Without the udev symlinks (the configure step) `AQ_DRM_DEVICES` lists only the GPU (or is unset with no PCI GPU) and Aquamarine ignores evdi entirely, so run configure and start a new session. Some sessions only pick up evdi outputs when the compositor starts with the dock already attached. Hyprland/aquamarine evdi support is unofficial.
 
 ## Test it safely
 

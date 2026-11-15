@@ -1,7 +1,7 @@
 # Body of the marked block that displaylink-configure.sh puts in ~/.config/uwsm/env-hyprland.
 # It runs in sh at session start, before Hyprland. The GPU is resolved at login instead of
 # hardcoded, so a missing udev symlink can never leave AQ_DRM_DEVICES pointing at nothing,
-# and an evdi card can never end up as the primary device.
+# and an evdi card can never end up as the primary device on a machine with a PCI GPU.
 gpu=
 for cand in /dev/dri/nvidia-gpu /dev/dri/amd-gpu /dev/dri/intel-gpu /dev/dri/gpu; do
   if [ -e "$cand" ]; then
@@ -10,9 +10,21 @@ for cand in /dev/dri/nvidia-gpu /dev/dri/amd-gpu /dev/dri/intel-gpu /dev/dri/gpu
   fi
 done
 
-# No GPU symlink (no PCI GPU, as on Apple Silicon, or the udev rule is not active yet): do not
-# guess a card. Aquamarine's own device choice works there, and a guessed primary broke the
-# built-in panel on a MacBook (the Touch Bar is its own DRM card). So AQ_DRM_DEVICES stays unset.
+# No GPU symlink (the udev rule is not active yet, or the GPU's PCI address changed): take the
+# first PCI DRM card that is not evdi. Only PCI cards count. With no PCI GPU (Apple Silicon) there
+# is nothing to pick: a guessed platform card broke the built-in panel on a MacBook, whose Touch Bar
+# is its own DRM card, so AQ_DRM_DEVICES stays unset and Aquamarine chooses the devices itself.
+if [ -z "$gpu" ]; then
+  for card in /dev/dri/card[0-9]*; do
+    [ -e "$card" ] || continue
+    name=$(basename "$card")
+    [ "$(basename "$(readlink -f "/sys/class/drm/${name}/device/subsystem")")" = pci ] || continue
+    [ "$(basename "$(readlink -f "/sys/class/drm/${name}/device/driver")")" = evdi ] && continue
+    gpu=$card
+    break
+  done
+fi
+
 if [ -n "$gpu" ]; then
   aq=$gpu
   [ -e /dev/dri/evdi0 ] && aq="${aq}:/dev/dri/evdi0"
