@@ -33,8 +33,8 @@ tmp_rules="$(mktemp)"
     echo "Primary GPU PCI $pci ($vendor) -> /dev/dri/${vendor}-gpu" >&2
     echo "KERNEL==\"card*\", KERNELS==\"$pci\", SUBSYSTEM==\"drm\", SUBSYSTEMS==\"pci\", SYMLINK+=\"dri/${vendor}-gpu\""
   else
-    # The env block then leaves AQ_DRM_DEVICES unset, so skipping the rule is safe.
-    echo "Could not detect a PCI GPU; skipping the GPU symlink rule (AQ_DRM_DEVICES stays unset and Aquamarine picks the devices)." >&2
+    # The env block scans for a PCI card or leaves AQ_DRM_DEVICES unset, so skipping the rule is safe.
+    echo "Could not detect a PCI GPU; skipping the GPU symlink rule (the env block then takes the first PCI card, or leaves AQ_DRM_DEVICES unset when there is none)." >&2
   fi
   echo "KERNEL==\"card*\", KERNELS==\"evdi.0\", SUBSYSTEM==\"drm\", SUBSYSTEMS==\"platform\", SYMLINK+=\"dri/evdi0\""
   echo "KERNEL==\"card*\", KERNELS==\"evdi.1\", SUBSYSTEM==\"drm\", SUBSYSTEMS==\"platform\", SYMLINK+=\"dri/evdi1\""

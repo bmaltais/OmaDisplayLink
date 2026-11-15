@@ -9,7 +9,7 @@
 set -euo pipefail
 
 BUILD=(base-devel git python)
-HELPERS=(dkms usbutils jq gum wl-clipboard)
+HELPERS=(dkms usbutils pciutils jq gum wl-clipboard)
 
 pkgs=("${BUILD[@]}" "${HELPERS[@]}")
 check=0
